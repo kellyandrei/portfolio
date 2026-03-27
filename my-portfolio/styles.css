@@ -31,7 +31,7 @@
     border-radius: 50%;
     position: fixed; top: 0; left: 0;
     pointer-events: none; z-index: 9999;
-    border-color: #0f0e0c;
+    border: 1px solid #0f0e0c;
   }
   .cursor-ring {
     width: 36px; height: 36px;
