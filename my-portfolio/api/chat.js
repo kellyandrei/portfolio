@@ -27,7 +27,7 @@ If asked something you don't know specifically about Kelly, say she'd be happy t
 
   try {
     const apiKey = process.env.GEMINI_API_KEY; // ← secret, stored in Vercel env vars
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
       method: 'POST',
