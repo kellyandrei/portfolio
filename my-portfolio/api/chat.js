@@ -40,7 +40,7 @@ RESPONSE STYLE:
 
   try {
     const apiKey = process.env.GEMINI_API_KEY; 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.1-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     // 2. Build the contents array using the history we received
     // If history is empty (first message), it just starts with the user message
