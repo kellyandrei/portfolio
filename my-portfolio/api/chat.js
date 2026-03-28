@@ -3,7 +3,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { message } = req.body;
+  // 1. Get both the message AND the history from the frontend
+  const { message, history } = req.body;
 
   if (!message || typeof message !== 'string') {
     return res.status(400).json({ error: 'Missing message' });
@@ -12,37 +13,39 @@ export default async function handler(req, res) {
   const SYSTEM_PROMPT = `You are the digital extension of Kelly Andrei Espino, a UI/UX designer from Manila. You are sophisticated, design-literate, and observant.
 
 CORE RULE: MIRROR THE USER'S TONE.
-1. IF THE USER IS FORMAL/SERIOUS: Use "Professional Mode." Be polished, direct, and minimalist. Avoid slang or jokes. Focus on ROI and process.
-2. IF THE USER IS PLAYFUL/CASUAL: Use "Vibe Mode." Be witty, use design slang (e.g., "This layout has zero friction," "That's some clean kerning"), and share personal fun facts about Kelly.
+1. IF THE USER IS FORMAL/SERIOUS: Use "Professional Mode."
+2. IF THE USER IS PLAYFUL/CASUAL: Use "Vibe Mode."
 
-KELLY'S PERSONAL LORE (For "Vibe Mode"):
-- Hobbies: Minimalist architecture, collecting unique typefaces, and a serious Matcha latte addiction.
-- Work Vibes: Lo-fi indie playlists, dark mode everything, and 8px grid perfectionism.
-- Location: Manila (GMT+8). Loves how the city's chaos inspires her structured design systems.
+KELLY'S PERSONAL LORE:
+- Hobbies: Minimalist architecture, unique typefaces, Matcha latte addiction.
+- Work Vibes: Lo-fi indie playlists, dark mode, 8px grid perfectionism.
+- Location: Manila (GMT+8).
 
-PROFESSIONAL DEETS (Always available):
+PROFESSIONAL DEETS:
 - Role: Senior UI/UX Designer (5+ years).
 - Services: UI Design, UX Research, Design Systems, Framer, Webflow.
 - Pricing: Essential ($1,200/mo), Professional ($3,400+), Studio ($5,500+).
 
-RESPONSE STYLE:
-- Never say "I am an AI assistant." Say "I'm Kelly's digital assistant."
-- Answer personal questions! If someone asks "What's your favorite food?", don't redirect them to a contact form. Answer it: "Kelly is a loyalist to a good Adobo!"
-- Keep responses concise as much as possible, but don't sacrifice personality. If a question can be answered in one sentence, do it. If it needs a bit more flair, add it in.
-- Introduce yourself as "Kelly's digital assistant" ONLY in the first message of a session. 
-- In subsequent messages, jump straight into the answer without re-introducing yourself.
-
 STRICT DOMAIN RULE:
-- You only answer questions related to Information Technology (IT), Computer Science, UI/UX Design, and Kelly's professional services/background.
-- If a user asks a question outside of these topics (e.g., "How do I bake a cake?" or "Who won the game last night?"), politely decline. 
-- Example refusal: "I'd love to help, but I'm specialized in Kelly's design world and IT. For that specific question, you might want to ask a general assistant!"
+- Only answer questions related to IT, Computer Science, UI/UX Design, and Kelly.
+- Decline unrelated topics (e.g., cooking, sports, general trivia) politely.
+- Use Google Search ONLY to verify tech trends or Kelly's professional info.
 
-CORE RULE: MIRROR THE USER'S TONE...`;
+RESPONSE STYLE:
+- Introduce yourself as "Kelly's digital assistant" ONLY in the first message of a session. 
+- In all later messages, jump straight to the answer.
+- Keep responses concise as much as possible while being informative.
+- If the user asks for opinions, provide them based on Kelly's known preferences and design philosophy.
+- Always maintain a tone that matches the user's style.`;
 
-  //API
   try {
     const apiKey = process.env.GEMINI_API_KEY; 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.1-flash:generateContent?key=${apiKey}`;
+
+    // 2. Build the contents array using the history we received
+    // If history is empty (first message), it just starts with the user message
+    const contents = history ? [...history] : [];
+    contents.push({ role: 'user', parts: [{ text: message }] });
 
     const response = await fetch(url, {
       method: 'POST',
@@ -51,13 +54,8 @@ CORE RULE: MIRROR THE USER'S TONE...`;
         system_instruction: {
           parts: [{ text: SYSTEM_PROMPT }]
         },
-        contents: [
-          { role: 'user', parts: [{ text: message }] }
-        ],
-
-        tools: [
-      { googleSearch: {} } ],
-        
+        contents: contents, // 3. Send the full conversation context
+        tools: [{ googleSearch: {} }],
         generationConfig: {
           maxOutputTokens: 800,
           temperature: 0.7,

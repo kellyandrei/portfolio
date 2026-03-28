@@ -1,6 +1,7 @@
 /*<!-- ══════════════════════════════════════════════════════════════
      THREE.JS — CHAMPAGNE PEARL BLOB
 ══════════════════════════════════════════════════════════════ -->*/
+let chatHistory = [];
 
 (function() {
   const canvas = document.getElementById('blob-canvas');
@@ -303,7 +304,7 @@
 
   async function sendMessage() {
     const input = document.getElementById('chatInput');
-    const text  = input.value.trim();
+    const text = input.value.trim();
     if (!text) return;
     input.value = '';
 
@@ -314,20 +315,32 @@
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ 
+            message: text, 
+            history: chatHistory 
+        }),
       });
 
       removeTyping(typingId);
 
       if (!res.ok) throw new Error('API error');
       const data = await res.json();
-      appendMsg('ai', data.reply || "I'm not sure, but Kelly would love to answer that directly — just use the contact form below!");
+      
+      // FIX 1: Create the 'reply' variable first
+      const reply = data.reply || "I'm not sure, but Kelly would love to answer that directly!";
+
+      // FIX 2: Only call appendMsg ONCE using the variable we just made
+      appendMsg('ai', reply);
+
+      // 3. Save the exchange to history
+      chatHistory.push({ role: 'user', parts: [{ text: text }] });
+      chatHistory.push({ role: 'model', parts: [{ text: reply }] });
 
     } catch (err) {
       removeTyping(typingId);
-      appendMsg('ai', "I'm having a little trouble right now. Feel free to reach out to Kelly directly using the contact form below!");
+      appendMsg('ai', "I'm having a little trouble right now. Feel free to reach out to Kelly directly!");
     }
-  }
+}
 
   function appendMsg(role, text) {
     const box = document.getElementById('chatMessages');
