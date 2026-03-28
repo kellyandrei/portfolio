@@ -238,6 +238,11 @@
         <div class="ai-msg-bubble">Hi there! I'm Kelly's AI assistant. I can answer questions about her work, design process, services, availability, and pricing. What would you like to know?</div>
       </div>
     </div>
+    <div class="chat-suggestions">
+      <button onclick="quickAsk('Tell me about your services')">Services</button>
+      <button onclick="quickAsk('What is your design process?')">Design Process</button>
+      <button onclick="quickAsk('Matcha or Coffee?')">Matcha vs Coffee</button>
+    </div>
     <div class="ai-chat-input-row">
       <textarea class="ai-chat-input" id="chatInput" rows="1" placeholder="Ask about Kelly's services, availability, pricing…" onkeydown="handleChatKey(event)"></textarea>
       <button class="ai-chat-send" onclick="sendMessage()">send →</button>
