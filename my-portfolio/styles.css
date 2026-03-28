@@ -697,6 +697,38 @@
   }
   .ai-chat-send:hover { background: var(--gold); }
 
+  .chat-suggestions {
+    display: flex;
+    gap: 8px;
+    padding: 10px 15px;
+    overflow-x: auto;
+    scrollbar-width: none; /* Hide scrollbar for clean look */
+  }
+
+  .chat-suggestions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .chip {
+    background: rgba(204, 164, 92, 0.1); /* Subtle champagne tint */
+    border: 1px solid rgba(204, 164, 92, 0.3);
+    color: #cca45c;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.3s ease;
+  }
+
+  .chip:hover {
+    background: #cca45c;
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(204, 164, 92, 0.2);
+  }
+
   /* ── RESPONSIVE ── */
   @media (max-width: 900px) {
     nav { padding: 20px 24px; }

@@ -340,7 +340,13 @@ let chatHistory = [];
       removeTyping(typingId);
       appendMsg('ai', "I'm having a little trouble right now. Feel free to reach out to Kelly directly!");
     }
-}
+  }
+
+  function quickAsk(text) {
+    const input = document.getElementById('chatInput');
+    input.value = text;
+    sendMessage(); // This calls your existing function
+  }
 
   function appendMsg(role, text) {
     const box = document.getElementById('chatMessages');
