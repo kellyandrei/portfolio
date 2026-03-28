@@ -649,6 +649,14 @@
     background: var(--cream);
     border: 1px solid var(--border);
   }
+
+  /* Styles the bold text inside the chat bubbles */
+.ai-msg-bubble strong {
+  font-weight: 700;
+  color: #634c26; /* Example champagne/gold color */
+  letter-spacing: 0.02em; /* Clean, designer-y touch */
+}
+
   .ai-msg.user .ai-msg-bubble {
     background: var(--ink);
     color: var(--cream);
