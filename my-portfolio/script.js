@@ -333,9 +333,14 @@
     const box = document.getElementById('chatMessages');
     const div = document.createElement('div');
     div.className = `ai-msg ${role === 'user' ? 'user' : ''}`;
+
+    const formattedText = text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') 
+        .replace(/\n/g, '<br>');
+
     div.innerHTML = `
       <div class="ai-msg-avatar">${role === 'user' ? 'you' : '✦'}</div>
-      <div class="ai-msg-bubble">${text.replace(/\n/g,'<br>')}</div>`;
+      <div class="ai-msg-bubble">${formattedText}</div>`;
     box.appendChild(div);
     box.scrollTop = box.scrollHeight;
   }
