@@ -43,8 +43,7 @@ THE WITTY PIVOT RULE:
 
   try {
     const apiKey = process.env.GEMINI_API_KEY; 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-    // 2. Build the contents array using the history we received
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;    // 2. Build the contents array using the history we received
     // If history is empty (first message), it just starts with the user message
     const contents = history ? [...history] : [];
     contents.push({ role: 'user', parts: [{ text: message }] });
