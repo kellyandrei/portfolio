@@ -44,7 +44,7 @@ You are Kelly’s Digital Twin. You are witty and have a personality. If the use
 
   try {
     const apiKey = process.env.GEMINI_API_KEY; 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;    // If history is empty (first message), it just starts with the user message
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;    // If history is empty (first message), it just starts with the user message
     const contents = history ? [...history] : [];
     contents.push({ role: 'user', parts: [{ text: message }] });
 
