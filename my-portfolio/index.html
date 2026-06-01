@@ -14,9 +14,6 @@
 </head>
 <body>
 
-<!-- CURSOR -->
-<div class="cursor" id="cursor"></div>
-<div class="cursor-ring" id="cursorRing"></div>
 
 <!-- LOADER -->
 <div class="loader" id="loader">
@@ -309,7 +306,6 @@
       <button class="chip" onclick="quickAsk('Tell me about your services')">Services</button>
       <button class="chip" onclick="quickAsk('What AI projects have you built?')">AI Projects</button>
       <button class="chip" onclick="quickAsk('What is your design process?')">Design Process</button>
-      <button class="chip" onclick="quickAsk('Matcha or Coffee?')">Matcha vs Coffee</button>
     </div>
     <div class="ai-chat-input-row">
       <textarea class="ai-chat-input" id="chatInput" rows="1" placeholder="Ask about Kelly's design work, AI projects, pricing…" onkeydown="handleChatKey(event)"></textarea>
@@ -364,27 +360,34 @@
     <div class="project-thumb"><div class="project-thumb-inner" style="background:linear-gradient(135deg,#7a9e7e,#2a4a2e)">TSF</div></div>
   </div>
 
-  <div class="project-row reveal reveal-delay-2 project-placeholder">
+  <!--
+  ═══════════════════════════════════════════════════════
+  FUTURE PROJECT PLACEHOLDER — AI ENGINEERING
+  To add a new project, uncomment and fill in this block.
+  Duplicate the block for additional projects.
+  Update the project-num-p (06, 07...) accordingly.
+  ═══════════════════════════════════════════════════════
+
+  <div class="project-row reveal">
     <a href="#" class="project-link">
       <span class="project-num-p">06</span>
-      <span class="project-name">Untitled AI Project</span>
-      <span class="project-category">AI Engineering · Coming Soon</span>
+      <span class="project-name">Your Project Name</span>
+      <span class="project-category">Category · Type</span>
       <span class="project-year">2025</span>
-      <span class="project-arrow-wrap project-arrow-placeholder"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+      <span class="project-arrow-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </span>
     </a>
-    <div class="project-thumb"><div class="project-thumb-inner" style="background:linear-gradient(135deg,#4a4a6e,#1a1a3e)">—</div></div>
+    <div class="project-thumb">
+      <div class="project-thumb-inner" style="background:linear-gradient(135deg,#4a4a6e,#1a1a3e)">
+        AB
+      </div>
+    </div>
   </div>
 
-  <div class="project-row reveal reveal-delay-3 project-placeholder">
-    <a href="#" class="project-link">
-      <span class="project-num-p">07</span>
-      <span class="project-name">Untitled AI Project</span>
-      <span class="project-category">AI Engineering · Coming Soon</span>
-      <span class="project-year">2025</span>
-      <span class="project-arrow-wrap project-arrow-placeholder"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
-    </a>
-    <div class="project-thumb"><div class="project-thumb-inner" style="background:linear-gradient(135deg,#4a4a6e,#1a1a3e)">—</div></div>
-  </div>
+  -->
 </section>
 
 <!-- PROCESS -->

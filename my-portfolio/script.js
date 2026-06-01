@@ -1,8 +1,8 @@
 /*══════════════════════════════════════════════════════════════
-  THREE.JS — CHROMATIC GOLD LIQUID METAL BLOB
-  Rebuilt: true metallic sphere with iridescent color shifting,
-  multi-layer specular highlights, and smooth organic deformation.
-  No more snot. This reads as molten gold / liquid chrome.
+  THREE.JS — IRIDESCENT SILVER HOLOGRAPHIC SPHERE
+  Silver/chrome base with dynamic prismatic rainbow reflections.
+  Cyan, violet, rose, gold color shifts. Organic liquid deformation.
+  White background. Real-time cube-camera env reflections.
 ══════════════════════════════════════════════════════════════*/
 let chatHistory = [];
 
@@ -13,11 +13,11 @@ let chatHistory = [];
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.6;
+  renderer.toneMappingExposure = 1.2;
   renderer.outputEncoding = THREE.sRGBEncoding;
-  renderer.shadowMap.enabled = false;
 
   const scene = new THREE.Scene();
+  scene.background = null;
 
   const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
   camera.position.set(0, 0, 5.5);
@@ -31,7 +31,7 @@ let chatHistory = [];
   resize();
   window.addEventListener('resize', resize);
 
-  // ── Cube render target for real-time env reflections ──
+  // ── Cube camera for real-time env reflections ──
   const cubeRT = new THREE.WebGLCubeRenderTarget(512, {
     format: THREE.RGBAFormat,
     generateMipmaps: true,
@@ -40,59 +40,69 @@ let chatHistory = [];
   const cubeCamera = new THREE.CubeCamera(0.1, 50, cubeRT);
   scene.add(cubeCamera);
 
-  // ── Scene background: rich dark void so reflections pop ──
-  scene.background = null; // stays transparent — page bg shows through
+  // ══ IRIDESCENT LIGHTING SETUP ══
+  // These lights are what create the rainbow color shifts in the silver surface.
+  // Each light contributes a different hue to the reflections.
 
-  // ══ LIGHTING SETUP — chromatic gold iridescent ══
-
-  // Primary warm gold key light — strong, directional
-  const keyLight = new THREE.DirectionalLight(0xffd080, 8.0);
+  // Bright white key — main illumination
+  const keyLight = new THREE.DirectionalLight(0xffffff, 6.0);
   keyLight.position.set(3, 5, 4);
   scene.add(keyLight);
 
-  // Cool blue-white fill from opposite — creates chromatic shift
-  const fillLight = new THREE.DirectionalLight(0x88ccff, 4.0);
-  fillLight.position.set(-4, -2, 3);
-  scene.add(fillLight);
+  // Cyan from upper left
+  const cyanLight = new THREE.DirectionalLight(0x44ffee, 5.0);
+  cyanLight.position.set(-4, 3, 3);
+  scene.add(cyanLight);
 
-  // Warm amber rim from behind — edge glow
-  const rimLight = new THREE.DirectionalLight(0xff9933, 5.0);
-  rimLight.position.set(0, -4, -5);
-  scene.add(rimLight);
+  // Violet/purple from right
+  const violetLight = new THREE.DirectionalLight(0xaa44ff, 4.5);
+  violetLight.position.set(5, -1, 2);
+  scene.add(violetLight);
 
-  // Soft rose/copper undertone from below
-  const underLight = new THREE.DirectionalLight(0xff6644, 2.5);
-  underLight.position.set(-2, -5, 2);
-  scene.add(underLight);
+  // Rose/pink from below
+  const roseLight = new THREE.DirectionalLight(0xff44aa, 3.5);
+  roseLight.position.set(-2, -5, 2);
+  scene.add(roseLight);
 
-  // Ambient — low, warm, keeps dark side visible
-  scene.add(new THREE.AmbientLight(0xffe8d0, 0.4));
+  // Warm gold rim from behind — subtle warmth
+  const goldRim = new THREE.DirectionalLight(0xffcc44, 3.0);
+  goldRim.position.set(1, -3, -5);
+  scene.add(goldRim);
 
-  // Animated specular orbs — these create the "liquid" shimmer
-  const orb1 = new THREE.PointLight(0xfff0aa, 20, 8);
+  // Soft ambient — keeps the sphere from going fully dark anywhere
+  scene.add(new THREE.AmbientLight(0xddeeff, 0.6));
+
+  // ── Animated specular orbs — create moving highlight hotspots ──
+  const orb1 = new THREE.PointLight(0xaaffff, 18, 9);  // cyan
   orb1.position.set(2.0, 2.5, 2.5);
   scene.add(orb1);
 
-  const orb2 = new THREE.PointLight(0x88ddff, 12, 8);
+  const orb2 = new THREE.PointLight(0xcc88ff, 14, 9);  // violet
   orb2.position.set(-2.5, -1.5, 2.0);
   scene.add(orb2);
 
-  const orb3 = new THREE.PointLight(0xff8833, 10, 7);
-  orb3.position.set(1.5, -3.0, -2.0);
+  const orb3 = new THREE.PointLight(0xffffff, 12, 8);  // white specular
+  orb3.position.set(0.5, 3.0, 2.0);
   scene.add(orb3);
 
-  // ── Colorful env backdrop panels (never visible, only reflected) ──
-  // These give the sphere rich color variance in its reflections
-  const envColors = [
-    { color: 0xffd060, pos: [0, 0, -8] },   // gold behind
-    { color: 0x4488ff, pos: [8, 0, 0] },    // blue right
-    { color: 0xff6600, pos: [-8, 0, 0] },   // orange left
-    { color: 0xffffff, pos: [0, 8, 0] },    // white top
-    { color: 0x331100, pos: [0, -8, 0] },   // dark bottom
+  const orb4 = new THREE.PointLight(0xff88cc, 8, 7);   // rose
+  orb4.position.set(-1.5, -3.0, 1.5);
+  scene.add(orb4);
+
+  // ── Environment panels — visible only in reflections ──
+  // These give the sphere rich iridescent color variance.
+  // They are placed far away so they never appear in the camera view.
+  const envPanels = [
+    { color: 0x00ffee, pos: [0, 0, -12] },     // cyan behind
+    { color: 0xaa00ff, pos: [12, 2, 0] },      // violet right
+    { color: 0xff0088, pos: [-12, 0, 0] },     // rose left
+    { color: 0xffffff, pos: [0, 12, 0] },      // white top
+    { color: 0x0011ff, pos: [0, -12, 2] },     // deep blue bottom
+    { color: 0xffee00, pos: [6, 6, -8] },      // gold diagonal
   ];
-  envColors.forEach(({ color, pos }) => {
+  envPanels.forEach(({ color, pos }) => {
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(20, 20),
+      new THREE.PlaneGeometry(28, 28),
       new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide })
     );
     mesh.position.set(...pos);
@@ -100,25 +110,28 @@ let chatHistory = [];
     scene.add(mesh);
   });
 
-  // ── Geometry — high-resolution for smooth deformation ──
+  // ── Geometry ──
   const geo = new THREE.SphereGeometry(1.55, 160, 160);
   const posAttr = geo.attributes.position;
   const vCount = posAttr.count;
   const orig = new Float32Array(posAttr.array);
 
-  // ── Material — true liquid gold chrome ──
+  // ── Material — silver iridescent chrome ──
+  // metalness: 1.0 = fully metallic (no diffuse, pure reflection)
+  // roughness: 0.03 = near-perfect mirror with slight spread
+  // color: near-white silver base — the lighting does all the color work
   const mat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(1.0, 0.82, 0.38),      // rich warm gold base
-    metalness: 1.0,                                 // fully metallic — no diffuse bleed
-    roughness: 0.04,                                // near-mirror, slight spread
+    color: new THREE.Color(0.92, 0.92, 0.96),   // silver-white base
+    metalness: 1.0,
+    roughness: 0.03,
     envMap: cubeRT.texture,
-    envMapIntensity: 3.5,
+    envMapIntensity: 4.0,
   });
 
   const sphere = new THREE.Mesh(geo, mat);
   scene.add(sphere);
 
-  // ── Smooth organic noise ──
+  // ── Perlin noise for organic deformation ──
   function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
   function lerp(a, b, t) { return a + t * (b - a); }
   function grad(h, x, y, z) {
@@ -128,22 +141,28 @@ let chatHistory = [];
   }
   const p = new Uint8Array(512);
   for (let i = 0; i < 256; i++) p[i] = i;
-  for (let i = 255; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; }
+  for (let i = 255; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [p[i], p[j]] = [p[j], p[i]];
+  }
   for (let i = 0; i < 256; i++) p[i + 256] = p[i];
 
   function pnoise(x, y, z) {
     const X = Math.floor(x) & 255, Y = Math.floor(y) & 255, Z = Math.floor(z) & 255;
     x -= Math.floor(x); y -= Math.floor(y); z -= Math.floor(z);
     const u = fade(x), v = fade(y), w = fade(z);
-    const A = p[X] + Y, AA = p[A] + Z, AB = p[A + 1] + Z, B = p[X + 1] + Y, BA = p[B] + Z, BB = p[B + 1] + Z;
+    const A = p[X] + Y, AA = p[A] + Z, AB = p[A + 1] + Z,
+          B = p[X + 1] + Y, BA = p[B] + Z, BB = p[B + 1] + Z;
     return lerp(
-      lerp(lerp(grad(p[AA], x, y, z), grad(p[BA], x - 1, y, z), u), lerp(grad(p[AB], x, y - 1, z), grad(p[BB], x - 1, y - 1, z), u), v),
-      lerp(lerp(grad(p[AA + 1], x, y, z - 1), grad(p[BA + 1], x - 1, y, z - 1), u), lerp(grad(p[AB + 1], x, y - 1, z - 1), grad(p[BB + 1], x - 1, y - 1, z - 1), u), v),
+      lerp(lerp(grad(p[AA], x, y, z), grad(p[BA], x - 1, y, z), u),
+           lerp(grad(p[AB], x, y - 1, z), grad(p[BB], x - 1, y - 1, z), u), v),
+      lerp(lerp(grad(p[AA + 1], x, y, z - 1), grad(p[BA + 1], x - 1, y, z - 1), u),
+           lerp(grad(p[AB + 1], x, y - 1, z - 1), grad(p[BB + 1], x - 1, y - 1, z - 1), u), v),
       w
     );
   }
 
-  // Mouse / touch
+  // Mouse / touch tracking
   let mxBlob = 0, myBlob = 0, smX = 0, smY = 0;
   document.addEventListener('mousemove', e => {
     mxBlob = (e.clientX / window.innerWidth - 0.5) * 2;
@@ -157,20 +176,20 @@ let chatHistory = [];
   const clock = new THREE.Clock();
   let frame = 0;
 
+  // Drooping offset — makes the bottom slightly heavier like the reference
+  const droopStrength = 0.045;
+
   function animate() {
     requestAnimationFrame(animate);
     frame++;
     const t = clock.getElapsedTime();
 
-    // Smooth mouse follow
     smX += (mxBlob - smX) * 0.025;
     smY += (myBlob - smY) * 0.025;
 
-    // ── Organic deformation ──
-    // Two-layer noise: macro shape + fine surface detail
-    // Kept gentle so it reads as liquid metal, not deflating balloon
-    const freq1 = 0.55, str1 = 0.055, spd1 = 0.18;  // large, slow undulation
-    const freq2 = 1.40, str2 = 0.022, spd2 = 0.40;  // fine surface ripple
+    // Two-layer deformation: slow macro + faster micro ripple
+    const f1 = 0.52, s1 = 0.055, sp1 = 0.16;
+    const f2 = 1.35, s2 = 0.020, sp2 = 0.38;
 
     for (let i = 0; i < vCount; i++) {
       const ox = orig[i * 3], oy = orig[i * 3 + 1], oz = orig[i * 3 + 2];
@@ -178,40 +197,47 @@ let chatHistory = [];
       const nx = ox / len, ny = oy / len, nz = oz / len;
 
       const n1 = pnoise(
-        nx * freq1 + t * spd1 + smX * 0.12,
-        ny * freq1 + t * spd1 * 0.7,
-        nz * freq1 + t * spd1 * 0.85 + smY * 0.12
+        nx * f1 + t * sp1 + smX * 0.10,
+        ny * f1 + t * sp1 * 0.75,
+        nz * f1 + t * sp1 * 0.88 + smY * 0.10
       );
       const n2 = pnoise(
-        nx * freq2 + t * spd2 * 0.6,
-        ny * freq2 + t * spd2,
-        nz * freq2 + t * spd2 * 0.8
+        nx * f2 + t * sp2 * 0.55,
+        ny * f2 + t * sp2,
+        nz * f2 + t * sp2 * 0.72
       );
 
-      const d = 1.0 + n1 * str1 + n2 * str2;
-      posAttr.setXYZ(i, ox * d, oy * d, oz * d);
+      // Droop: vertices at the bottom (ny < 0) sag slightly downward
+      const droop = ny < 0 ? ny * droopStrength * (1 + Math.sin(t * 0.3) * 0.2) : 0;
+
+      const d = 1.0 + n1 * s1 + n2 * s2;
+      posAttr.setXYZ(i, ox * d, oy * d + droop, oz * d);
     }
     posAttr.needsUpdate = true;
     geo.computeVertexNormals();
 
-    // Rotation — slow and dignified, not dizzy
-    sphere.rotation.y = t * 0.08 + smX * 0.18;
-    sphere.rotation.x = Math.sin(t * 0.05) * 0.06 + smY * 0.08;
+    // Slow dignified rotation
+    sphere.rotation.y = t * 0.07 + smX * 0.15;
+    sphere.rotation.x = Math.sin(t * 0.045) * 0.05 + smY * 0.07;
 
-    // ── Animate light orbs for shimmer ──
-    orb1.position.x = Math.sin(t * 0.50) * 2.5;
-    orb1.position.y = Math.cos(t * 0.38) * 2.0 + 1.0;
-    orb1.position.z = Math.cos(t * 0.22) * 1.5 + 1.5;
+    // Animate orbs — creates shifting iridescent highlights
+    orb1.position.x = Math.sin(t * 0.48) * 2.6;
+    orb1.position.y = Math.cos(t * 0.36) * 2.2 + 0.8;
+    orb1.position.z = Math.cos(t * 0.20) * 1.4 + 1.8;
 
-    orb2.position.x = Math.cos(t * 0.42) * 2.8;
-    orb2.position.y = Math.sin(t * 0.30) * 1.8 - 0.5;
-    orb2.position.z = Math.sin(t * 0.18) * 1.2 + 1.5;
+    orb2.position.x = Math.cos(t * 0.40) * 3.0;
+    orb2.position.y = Math.sin(t * 0.28) * 1.9 - 0.6;
+    orb2.position.z = Math.sin(t * 0.17) * 1.2 + 1.6;
 
-    orb3.position.x = Math.sin(t * 0.33) * 2.2;
-    orb3.position.y = Math.cos(t * 0.45) * 1.5 - 2.0;
-    orb3.position.z = -Math.cos(t * 0.28) * 2.0 - 1.0;
+    orb3.position.x = Math.sin(t * 0.55) * 1.8;
+    orb3.position.y = Math.cos(t * 0.42) * 2.5 + 1.5;
+    orb3.position.z = Math.cos(t * 0.33) * 1.0 + 2.2;
 
-    // Refresh env map every 3rd frame — balance quality vs perf
+    orb4.position.x = Math.cos(t * 0.35) * 2.4;
+    orb4.position.y = Math.sin(t * 0.50) * 1.6 - 2.2;
+    orb4.position.z = Math.sin(t * 0.24) * 1.5 + 1.0;
+
+    // Refresh env map every 3 frames
     if (frame % 3 === 0) {
       sphere.visible = false;
       cubeCamera.update(renderer, scene);
@@ -222,22 +248,6 @@ let chatHistory = [];
   }
 
   animate();
-})();
-
-
-// ── CURSOR ──
-(function () {
-  const cursor = document.getElementById('cursor');
-  const ring = document.getElementById('cursorRing');
-  if (!cursor || !ring) return;
-  let mx = 0, my = 0, rx = 0, ry = 0;
-  document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
-  (function animCursor() {
-    rx += (mx - rx) * 0.12; ry += (my - ry) * 0.12;
-    cursor.style.transform = `translate(${mx - 4}px,${my - 4}px)`;
-    ring.style.transform = `translate(${rx - 18}px,${ry - 18}px)`;
-    requestAnimationFrame(animCursor);
-  })();
 })();
 
 
@@ -307,7 +317,6 @@ const metricsEl = document.getElementById('metrics');
 if (metricsEl) cntObs.observe(metricsEl);
 
 // ── SERVICE ACCORDION ──
-// Works across all service rows regardless of count
 function toggleService(idx) {
   document.querySelectorAll('.service-row').forEach((row, i) => {
     const body = document.getElementById('sb-' + i);
@@ -380,7 +389,6 @@ async function sendMessage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: text, history: chatHistory }),
     });
-
     removeTyping(typingId);
     if (!res.ok) throw new Error('API error');
     const data = await res.json();
