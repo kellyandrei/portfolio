@@ -1,8 +1,9 @@
 /*══════════════════════════════════════════════════════════════
-  THREE.JS — IRIDESCENT SILVER HOLOGRAPHIC SPHERE
-  Silver/chrome base with dynamic prismatic rainbow reflections.
-  Cyan, violet, rose, gold color shifts. Organic liquid deformation.
-  White background. Real-time cube-camera env reflections.
+  THREE.JS — GOLDEN SOUTH SEA PEARL
+  Warm champagne-gold base. Soft creamy highlight upper-left.
+  Deep amber shadows lower-right. Pearlescent subsurface glow.
+  Gentle organic breathing. Slow dignified rotation.
+  No sharp chrome. No rainbow. Just luminous pearl lustre.
 ══════════════════════════════════════════════════════════════*/
 let chatHistory = [];
 
@@ -13,14 +14,14 @@ let chatHistory = [];
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.2;
+  renderer.toneMappingExposure = 1.1;
   renderer.outputEncoding = THREE.sRGBEncoding;
 
   const scene = new THREE.Scene();
   scene.background = null;
 
-  const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
-  camera.position.set(0, 0, 5.5);
+  const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
+  camera.position.set(0, 0, 5.2);
 
   function resize() {
     const w = canvas.clientWidth, h = canvas.clientHeight;
@@ -31,8 +32,8 @@ let chatHistory = [];
   resize();
   window.addEventListener('resize', resize);
 
-  // ── Cube camera for real-time env reflections ──
-  const cubeRT = new THREE.WebGLCubeRenderTarget(512, {
+  // ── Cube render target for real reflections ──
+  const cubeRT = new THREE.WebGLCubeRenderTarget(256, {
     format: THREE.RGBAFormat,
     generateMipmaps: true,
     minFilter: THREE.LinearMipmapLinearFilter,
@@ -40,69 +41,62 @@ let chatHistory = [];
   const cubeCamera = new THREE.CubeCamera(0.1, 50, cubeRT);
   scene.add(cubeCamera);
 
-  // ══ IRIDESCENT LIGHTING SETUP ══
-  // These lights are what create the rainbow color shifts in the silver surface.
-  // Each light contributes a different hue to the reflections.
+  // ══ PEARL LIGHTING ══
+  // Goal: replicate the look of a real South Sea pearl under studio light.
+  // One strong key from upper-left, warm fill, dark negative fill on right.
 
-  // Bright white key — main illumination
-  const keyLight = new THREE.DirectionalLight(0xffffff, 6.0);
-  keyLight.position.set(3, 5, 4);
+  // Key light — warm white from upper-left, creates the main bright lobe
+  const keyLight = new THREE.DirectionalLight(0xfff8f0, 5.5);
+  keyLight.position.set(-2.5, 3.5, 4.0);
   scene.add(keyLight);
 
-  // Cyan from upper left
-  const cyanLight = new THREE.DirectionalLight(0x44ffee, 5.0);
-  cyanLight.position.set(-4, 3, 3);
-  scene.add(cyanLight);
+  // Secondary warm fill — adds the soft second highlight lobe
+  const fillLight = new THREE.DirectionalLight(0xffe8c0, 2.5);
+  fillLight.position.set(2.0, 1.5, 3.0);
+  scene.add(fillLight);
 
-  // Violet/purple from right
-  const violetLight = new THREE.DirectionalLight(0xaa44ff, 4.5);
-  violetLight.position.set(5, -1, 2);
-  scene.add(violetLight);
+  // Amber shadow fill from below-right — creates the deep warm shadow area
+  const shadowFill = new THREE.DirectionalLight(0xc07820, 1.2);
+  shadowFill.position.set(3.5, -3.0, 1.0);
+  scene.add(shadowFill);
 
-  // Rose/pink from below
-  const roseLight = new THREE.DirectionalLight(0xff44aa, 3.5);
-  roseLight.position.set(-2, -5, 2);
-  scene.add(roseLight);
+  // Subtle cool bounce from below — keeps the dark side from going flat black
+  const bounceFill = new THREE.DirectionalLight(0xffeedd, 0.6);
+  bounceFill.position.set(0, -4, 2);
+  scene.add(bounceFill);
 
-  // Warm gold rim from behind — subtle warmth
-  const goldRim = new THREE.DirectionalLight(0xffcc44, 3.0);
-  goldRim.position.set(1, -3, -5);
-  scene.add(goldRim);
+  // Warm ambient — the overall bath of golden warmth
+  scene.add(new THREE.AmbientLight(0xffd090, 0.9));
 
-  // Soft ambient — keeps the sphere from going fully dark anywhere
-  scene.add(new THREE.AmbientLight(0xddeeff, 0.6));
+  // ── Main specular orb — the bright cream highlight lobe ──
+  // This is the key "pearl highlight" you see on the reference image.
+  const pearlHighlight = new THREE.PointLight(0xfffaf0, 14, 7);
+  pearlHighlight.position.set(-1.8, 2.0, 2.8);
+  scene.add(pearlHighlight);
 
-  // ── Animated specular orbs — create moving highlight hotspots ──
-  const orb1 = new THREE.PointLight(0xaaffff, 18, 9);  // cyan
-  orb1.position.set(2.0, 2.5, 2.5);
-  scene.add(orb1);
+  // Secondary smaller highlight — the small bright spot on the reference
+  const pearlHighlight2 = new THREE.PointLight(0xffffff, 6, 5);
+  pearlHighlight2.position.set(-0.6, 2.8, 2.4);
+  scene.add(pearlHighlight2);
 
-  const orb2 = new THREE.PointLight(0xcc88ff, 14, 9);  // violet
-  orb2.position.set(-2.5, -1.5, 2.0);
-  scene.add(orb2);
+  // Warm amber glow from below — the dark amber area on lower-right of reference
+  const amberGlow = new THREE.PointLight(0xd4620a, 4, 6);
+  amberGlow.position.set(2.5, -2.0, 1.5);
+  scene.add(amberGlow);
 
-  const orb3 = new THREE.PointLight(0xffffff, 12, 8);  // white specular
-  orb3.position.set(0.5, 3.0, 2.0);
-  scene.add(orb3);
-
-  const orb4 = new THREE.PointLight(0xff88cc, 8, 7);   // rose
-  orb4.position.set(-1.5, -3.0, 1.5);
-  scene.add(orb4);
-
-  // ── Environment panels — visible only in reflections ──
-  // These give the sphere rich iridescent color variance.
-  // They are placed far away so they never appear in the camera view.
-  const envPanels = [
-    { color: 0x00ffee, pos: [0, 0, -12] },     // cyan behind
-    { color: 0xaa00ff, pos: [12, 2, 0] },      // violet right
-    { color: 0xff0088, pos: [-12, 0, 0] },     // rose left
-    { color: 0xffffff, pos: [0, 12, 0] },      // white top
-    { color: 0x0011ff, pos: [0, -12, 2] },     // deep blue bottom
-    { color: 0xffee00, pos: [6, 6, -8] },      // gold diagonal
+  // ── Environment panels — only visible in reflections ──
+  // Warm neutral tones to keep the pearl looking golden, not colourful
+  const panelData = [
+    { color: 0xfff5e0, pos: [0, 0, -10] },
+    { color: 0xffe0a0, pos: [-10, 3, 0] },
+    { color: 0x8b5c20, pos: [10, -2, 0] },
+    { color: 0xfff8f0, pos: [0, 10, 0] },
+    { color: 0x3a2a10, pos: [0, -10, 0] },
+    { color: 0xc8903a, pos: [5, 5, -8] },
   ];
-  envPanels.forEach(({ color, pos }) => {
+  panelData.forEach(({ color, pos }) => {
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(28, 28),
+      new THREE.PlaneGeometry(24, 24),
       new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide })
     );
     mesh.position.set(...pos);
@@ -110,28 +104,44 @@ let chatHistory = [];
     scene.add(mesh);
   });
 
-  // ── Geometry ──
-  const geo = new THREE.SphereGeometry(1.55, 160, 160);
+  // ── Geometry — high-res for smooth surface ──
+  const geo = new THREE.SphereGeometry(1.52, 192, 192);
   const posAttr = geo.attributes.position;
   const vCount = posAttr.count;
   const orig = new Float32Array(posAttr.array);
 
-  // ── Material — silver iridescent chrome ──
-  // metalness: 1.0 = fully metallic (no diffuse, pure reflection)
-  // roughness: 0.03 = near-perfect mirror with slight spread
-  // color: near-white silver base — the lighting does all the color work
+  // ── Pearl material ──
+  // Key: metalness NOT 1.0. Pearls are NOT metallic.
+  // They have subsurface scattering — light penetrates slightly.
+  // We simulate this with: moderate metalness, low-mid roughness,
+  // warm base color, and the env map doing the heavy lifting.
   const mat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0.92, 0.92, 0.96),   // silver-white base
-    metalness: 1.0,
-    roughness: 0.03,
+    color: new THREE.Color(0.88, 0.68, 0.32),   // warm champagne gold
+    metalness: 0.55,                              // partial — pearl is semi-lustrous
+    roughness: 0.18,                              // soft, not chrome-sharp
     envMap: cubeRT.texture,
-    envMapIntensity: 4.0,
+    envMapIntensity: 1.8,
   });
 
   const sphere = new THREE.Mesh(geo, mat);
   scene.add(sphere);
 
-  // ── Perlin noise for organic deformation ──
+  // ── Subtle drop shadow plane ──
+  // Pearls in references always have a soft cast shadow beneath them
+  const shadowGeo = new THREE.PlaneGeometry(2.4, 0.6);
+  const shadowMat = new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    transparent: true,
+    opacity: 0.10,
+  });
+  const shadowPlane = new THREE.Mesh(shadowGeo, shadowMat);
+  shadowPlane.rotation.x = -Math.PI / 2;
+  shadowPlane.position.set(0.1, -1.85, 0);
+  // Scale x to make it oval like a real cast shadow
+  shadowPlane.scale.set(1, 0.35, 1);
+  scene.add(shadowPlane);
+
+  // ── Perlin noise ──
   function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
   function lerp(a, b, t) { return a + t * (b - a); }
   function grad(h, x, y, z) {
@@ -154,15 +164,15 @@ let chatHistory = [];
     const A = p[X] + Y, AA = p[A] + Z, AB = p[A + 1] + Z,
           B = p[X + 1] + Y, BA = p[B] + Z, BB = p[B + 1] + Z;
     return lerp(
-      lerp(lerp(grad(p[AA], x, y, z), grad(p[BA], x - 1, y, z), u),
-           lerp(grad(p[AB], x, y - 1, z), grad(p[BB], x - 1, y - 1, z), u), v),
-      lerp(lerp(grad(p[AA + 1], x, y, z - 1), grad(p[BA + 1], x - 1, y, z - 1), u),
-           lerp(grad(p[AB + 1], x, y - 1, z - 1), grad(p[BB + 1], x - 1, y - 1, z - 1), u), v),
+      lerp(lerp(grad(p[AA], x, y, z), grad(p[BA], x-1, y, z), u),
+           lerp(grad(p[AB], x, y-1, z), grad(p[BB], x-1, y-1, z), u), v),
+      lerp(lerp(grad(p[AA+1], x, y, z-1), grad(p[BA+1], x-1, y, z-1), u),
+           lerp(grad(p[AB+1], x, y-1, z-1), grad(p[BB+1], x-1, y-1, z-1), u), v),
       w
     );
   }
 
-  // Mouse / touch tracking
+  // Mouse tracking
   let mxBlob = 0, myBlob = 0, smX = 0, smY = 0;
   document.addEventListener('mousemove', e => {
     mxBlob = (e.clientX / window.innerWidth - 0.5) * 2;
@@ -176,72 +186,62 @@ let chatHistory = [];
   const clock = new THREE.Clock();
   let frame = 0;
 
-  // Drooping offset — makes the bottom slightly heavier like the reference
-  const droopStrength = 0.045;
-
   function animate() {
     requestAnimationFrame(animate);
     frame++;
     const t = clock.getElapsedTime();
 
-    smX += (mxBlob - smX) * 0.025;
-    smY += (myBlob - smY) * 0.025;
+    smX += (mxBlob - smX) * 0.02;
+    smY += (myBlob - smY) * 0.02;
 
-    // Two-layer deformation: slow macro + faster micro ripple
-    const f1 = 0.52, s1 = 0.055, sp1 = 0.16;
-    const f2 = 1.35, s2 = 0.020, sp2 = 0.38;
+    // ── Very gentle organic breathing ──
+    // Pearls are nearly perfect spheres — keep deformation minimal and slow.
+    // Just enough to feel alive, not enough to look like it's morphing.
+    const freq = 0.48, strength = 0.028, speed = 0.12;
 
     for (let i = 0; i < vCount; i++) {
       const ox = orig[i * 3], oy = orig[i * 3 + 1], oz = orig[i * 3 + 2];
       const len = Math.sqrt(ox * ox + oy * oy + oz * oz) || 1;
       const nx = ox / len, ny = oy / len, nz = oz / len;
 
-      const n1 = pnoise(
-        nx * f1 + t * sp1 + smX * 0.10,
-        ny * f1 + t * sp1 * 0.75,
-        nz * f1 + t * sp1 * 0.88 + smY * 0.10
-      );
-      const n2 = pnoise(
-        nx * f2 + t * sp2 * 0.55,
-        ny * f2 + t * sp2,
-        nz * f2 + t * sp2 * 0.72
+      const n = pnoise(
+        nx * freq + t * speed + smX * 0.08,
+        ny * freq + t * speed * 0.75,
+        nz * freq + t * speed * 0.88 + smY * 0.08
       );
 
-      // Droop: vertices at the bottom (ny < 0) sag slightly downward
-      const droop = ny < 0 ? ny * droopStrength * (1 + Math.sin(t * 0.3) * 0.2) : 0;
-
-      const d = 1.0 + n1 * s1 + n2 * s2;
-      posAttr.setXYZ(i, ox * d, oy * d + droop, oz * d);
+      const d = 1.0 + n * strength;
+      posAttr.setXYZ(i, ox * d, oy * d, oz * d);
     }
     posAttr.needsUpdate = true;
     geo.computeVertexNormals();
 
-    // Slow dignified rotation
-    sphere.rotation.y = t * 0.07 + smX * 0.15;
-    sphere.rotation.x = Math.sin(t * 0.045) * 0.05 + smY * 0.07;
+    // Slow, dignified rotation — pearls don't spin fast
+    sphere.rotation.y = t * 0.06 + smX * 0.12;
+    sphere.rotation.x = Math.sin(t * 0.04) * 0.04 + smY * 0.06;
 
-    // Animate orbs — creates shifting iridescent highlights
-    orb1.position.x = Math.sin(t * 0.48) * 2.6;
-    orb1.position.y = Math.cos(t * 0.36) * 2.2 + 0.8;
-    orb1.position.z = Math.cos(t * 0.20) * 1.4 + 1.8;
+    // ── Animate the main highlight lobe ──
+    // Moves very subtly — gives that living pearlescent lustre shift
+    pearlHighlight.position.x = -1.8 + Math.sin(t * 0.22) * 0.3;
+    pearlHighlight.position.y = 2.0 + Math.cos(t * 0.18) * 0.25;
 
-    orb2.position.x = Math.cos(t * 0.40) * 3.0;
-    orb2.position.y = Math.sin(t * 0.28) * 1.9 - 0.6;
-    orb2.position.z = Math.sin(t * 0.17) * 1.2 + 1.6;
+    pearlHighlight2.position.x = -0.6 + Math.sin(t * 0.30) * 0.2;
+    pearlHighlight2.position.y = 2.8 + Math.cos(t * 0.25) * 0.15;
 
-    orb3.position.x = Math.sin(t * 0.55) * 1.8;
-    orb3.position.y = Math.cos(t * 0.42) * 2.5 + 1.5;
-    orb3.position.z = Math.cos(t * 0.33) * 1.0 + 2.2;
+    // Amber glow drifts slowly
+    amberGlow.position.x = 2.5 + Math.cos(t * 0.15) * 0.4;
+    amberGlow.position.y = -2.0 + Math.sin(t * 0.20) * 0.3;
 
-    orb4.position.x = Math.cos(t * 0.35) * 2.4;
-    orb4.position.y = Math.sin(t * 0.50) * 1.6 - 2.2;
-    orb4.position.z = Math.sin(t * 0.24) * 1.5 + 1.0;
+    // Shadow follows sphere subtly
+    shadowPlane.position.x = smX * 0.08;
 
-    // Refresh env map every 3 frames
+    // Refresh env every 3 frames
     if (frame % 3 === 0) {
       sphere.visible = false;
+      shadowPlane.visible = false;
       cubeCamera.update(renderer, scene);
       sphere.visible = true;
+      shadowPlane.visible = true;
     }
 
     renderer.render(scene, camera);
@@ -379,10 +379,8 @@ async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
   input.value = '';
-
   appendMsg('user', text);
   const typingId = appendTyping();
-
   try {
     const res = await fetch('/api/chat', {
       method: 'POST',
