@@ -191,16 +191,17 @@
     overflow: hidden;
     padding: 0 48px;
     background: var(--warm-white);
+    isolation: isolate;
   }
 
-  /* ── BLOB CANVAS — large orb, bleeds off bottom like BlueYard ── */
+  /* ── BLOB CANVAS — lower half hero, never clips orb ── */
   #blob-canvas {
     position: absolute;
-    bottom: -18vh;
+    bottom: -22vh;
     left: 50%;
     transform: translateX(-50%);
-    width: clamp(480px, 72vw, 900px);
-    height: clamp(480px, 72vw, 900px);
+    width: clamp(600px, 88vw, 1100px);
+    height: clamp(600px, 88vw, 1100px);
     pointer-events: none;
     z-index: 0;
   }
@@ -208,9 +209,9 @@
   .hero-text {
     text-align: center;
     position: relative;
-    z-index: 2;
+    z-index: 10;
     padding: 0 24px;
-    margin-top: clamp(100px, 14vh, 160px);
+    margin-top: clamp(100px, 13vh, 150px);
   }
   .hero-label {
     font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase;
@@ -226,7 +227,8 @@
     margin-bottom: 20px;
   }
   .hero-title em {
-    font-style: italic; color: var(--gold);
+    font-style: italic;
+    color: var(--ink);
     display: block;
     line-height: 1.25;
   }
@@ -292,7 +294,7 @@
     font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
     color: var(--muted); writing-mode: vertical-rl;
     display: flex; align-items: center; gap: 12px;
-    opacity: 0; animation: fadeUp 1s ease 2.2s forwards; z-index: 2;
+    opacity: 0; animation: fadeUp 1s ease 2.2s forwards; z-index: 10;
   }
   .hero-scroll::before {
     content: ''; width: 1px; height: 40px; background: var(--muted);

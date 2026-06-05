@@ -20,7 +20,7 @@ let chatHistory = [];
 
   // Camera — pulled back enough to see the full large orb
   const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
-  camera.position.z = 4.8;
+  camera.position.z = 5.2;
 
   function resize() {
     const w = canvas.clientWidth, h = canvas.clientHeight;
@@ -90,11 +90,11 @@ let chatHistory = [];
       vNormal   = normal;
       vPosition = position;
 
-      // Two noise octaves — large slow undulation + fine surface churn
-      vec3 np1 = position * 1.3 + uTime * 0.35 + vec3(uMouse * 0.20, 0.0);
-      vec3 np2 = position * 2.6 + uTime * 0.58;
+      // Gentle noise — mostly round with slow organic undulation
+      vec3 np1 = position * 0.7 + uTime * 0.22 + vec3(uMouse * 0.12, 0.0);
+      vec3 np2 = position * 1.6 + uTime * 0.38;
 
-      float n = snoise(np1) * 0.20 + snoise(np2) * 0.08;
+      float n = snoise(np1) * 0.10 + snoise(np2) * 0.03;
 
       vec3 displaced = position + normal * n;
       gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
@@ -115,34 +115,34 @@ let chatHistory = [];
       vec3 N = normalize(vNormal);
       float fresnel = pow(1.0 - abs(dot(N, vec3(0.0, 0.0, 1.0))), 2.0);
 
-      // Rich gold palette
-      vec3 coreAmber   = vec3(0.72, 0.28, 0.08);   // deep burnt amber — the dark centre
-      vec3 midGold     = vec3(0.90, 0.60, 0.20);   // warm mid gold
-      vec3 champagne   = vec3(0.96, 0.82, 0.52);   // bright champagne
-      vec3 rimCream    = vec3(1.00, 0.95, 0.80);   // cream-white rim glow
+      // Softer champagne-gold palette — warm but not burnt
+      vec3 coreDark    = vec3(0.75, 0.45, 0.15);   // warm amber, not too dark
+      vec3 midGold     = vec3(0.92, 0.72, 0.38);   // champagne gold mid
+      vec3 highlight   = vec3(0.98, 0.90, 0.68);   // soft golden highlight
+      vec3 rimCream    = vec3(1.00, 0.97, 0.88);   // cream-white rim glow
 
-      // Vertical gradient — dark at bottom, lighter at top
-      float vert = clamp(vPosition.y * 0.42 + 0.55, 0.0, 1.0);
-      vec3 col = mix(coreAmber, midGold, vert);
-      col = mix(col, champagne, vert * vert * 0.5);
+      // Vertical gradient — slightly darker bottom, lighter top
+      float vert = clamp(vPosition.y * 0.38 + 0.58, 0.0, 1.0);
+      vec3 col = mix(coreDark, midGold, vert);
+      col = mix(col, highlight, vert * vert * 0.45);
 
-      // Fresnel pushes edges to bright cream
-      col = mix(col, rimCream, fresnel * 0.90);
+      // Fresnel edge glow
+      col = mix(col, rimCream, fresnel * 0.85);
 
-      // Animated shimmer across surface
-      float shimmer = sin(vPosition.x * 5.0 + uTime * 0.7) *
-                      cos(vPosition.y * 4.0 + uTime * 0.5) * 0.055;
-      col += vec3(shimmer, shimmer * 0.7, shimmer * 0.2);
+      // Subtle shimmer — quieter
+      float shimmer = sin(vPosition.x * 4.0 + uTime * 0.5) *
+                      cos(vPosition.y * 3.5 + uTime * 0.4) * 0.030;
+      col += vec3(shimmer, shimmer * 0.75, shimmer * 0.25);
 
-      // Extra rim glow
-      col += rimCream * fresnel * 0.22;
+      // Rim bloom
+      col += rimCream * fresnel * 0.16;
 
       gl_FragColor = vec4(col, 1.0);
     }
   `;
 
   // ── Orb — large sphere ──
-  const orbGeo = new THREE.SphereGeometry(1.7, 192, 192);
+  const orbGeo = new THREE.SphereGeometry(1.55, 192, 192);
   const uniforms = {
     uTime:  { value: 0.0 },
     uMouse: { value: new THREE.Vector2(0, 0) },
@@ -167,7 +167,7 @@ let chatHistory = [];
 
   for (let i = 0; i < PARTICLE_COUNT; i++) {
     // Tight shell — particles hug the surface closely
-    const radius = 1.72 + Math.random() * 0.55;
+    const radius = 1.58 + Math.random() * 0.50;
     const u      = Math.random();
     const v      = Math.random();
     const theta  = u * 2.0 * Math.PI;
