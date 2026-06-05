@@ -1,8 +1,10 @@
 /*══════════════════════════════════════════════════════════════
-  THREE.JS — CHROMATIC GOLD LIQUID METAL BLOB
-  Rebuilt: true metallic sphere with iridescent color shifting,
-  multi-layer specular highlights, and smooth organic deformation.
-  No more snot. This reads as molten gold / liquid chrome.
+  THREE.JS — FLUID GOLD ORB  v6
+  - Large orb filling lower hero, bleeding off screen bottom
+  - Rich deep amber → champagne → cream-white fresnel glow
+  - Dense sparkling particle field on the surface
+  - Strong simplex noise displacement for fluid organic shape
+  - Background colour matches orb warmth (no hard edge)
 ══════════════════════════════════════════════════════════════*/
 let chatHistory = [];
 
@@ -12,15 +14,13 @@ let chatHistory = [];
 
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.6;
-  renderer.outputEncoding = THREE.sRGBEncoding;
-  renderer.shadowMap.enabled = false;
+  renderer.setClearColor(0x000000, 0);
 
   const scene = new THREE.Scene();
 
-  const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
-  camera.position.set(0, 0, 5.5);
+  // Camera — pulled back enough to see the full large orb
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+  camera.position.z = 5.2;
 
   function resize() {
     const w = canvas.clientWidth, h = canvas.clientHeight;
@@ -31,213 +31,209 @@ let chatHistory = [];
   resize();
   window.addEventListener('resize', resize);
 
-  // ── Cube render target for real-time env reflections ──
-  const cubeRT = new THREE.WebGLCubeRenderTarget(512, {
-    format: THREE.RGBAFormat,
-    generateMipmaps: true,
-    minFilter: THREE.LinearMipmapLinearFilter,
+  // ══ VERTEX SHADER ══
+  // Heavy simplex displacement — what makes it look fluid, not spherical
+  const vertexShader = `
+    uniform float uTime;
+    uniform vec2  uMouse;
+
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+
+    vec4 permute(vec4 x){ return mod(((x*34.0)+1.0)*x, 289.0); }
+    vec4 taylorInvSqrt(vec4 r){ return 1.79284291400159 - 0.85373472095314 * r; }
+
+    float snoise(vec3 v) {
+      const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+      const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+      vec3 i  = floor(v + dot(v, C.yyy));
+      vec3 x0 =   v - i + dot(i, C.xxx);
+      vec3 g  = step(x0.yzx, x0.xyz);
+      vec3 l  = 1.0 - g;
+      vec3 i1 = min(g.xyz, l.zxy);
+      vec3 i2 = max(g.xyz, l.zxy);
+      vec3 x1 = x0 - i1 + C.xxx;
+      vec3 x2 = x0 - i2 + C.yyy;
+      vec3 x3 = x0 - D.yyy;
+      i = mod(i, 289.0);
+      vec4 p = permute(permute(permute(
+        i.z + vec4(0.0, i1.z, i2.z, 1.0))
+        + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+        + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+      float n_ = 0.142857142857;
+      vec3  ns = n_ * D.wyz - D.xzx;
+      vec4 j  = p - 49.0 * floor(p * ns.z * ns.z);
+      vec4 x_ = floor(j * ns.z);
+      vec4 y_ = floor(j - 7.0 * x_);
+      vec4 x  = x_ * ns.x + ns.yyyy;
+      vec4 y  = y_ * ns.x + ns.yyyy;
+      vec4 h  = 1.0 - abs(x) - abs(y);
+      vec4 b0 = vec4(x.xy, y.xy);
+      vec4 b1 = vec4(x.zw, y.zw);
+      vec4 s0 = floor(b0)*2.0 + 1.0;
+      vec4 s1 = floor(b1)*2.0 + 1.0;
+      vec4 sh = -step(h, vec4(0.0));
+      vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+      vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+      vec3 p0 = vec3(a0.xy,h.x);
+      vec3 p1 = vec3(a0.zw,h.y);
+      vec3 p2 = vec3(a1.xy,h.z);
+      vec3 p3 = vec3(a1.zw,h.w);
+      vec4 norm = taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
+      p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+      vec4 m = max(0.6 - vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)), 0.0);
+      m = m * m;
+      return 42.0 * dot(m*m, vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
+    }
+
+    void main() {
+      vNormal   = normal;
+      vPosition = position;
+
+      // Gentle noise — mostly round with slow organic undulation
+      vec3 np1 = position * 0.7 + uTime * 0.22 + vec3(uMouse * 0.12, 0.0);
+      vec3 np2 = position * 1.6 + uTime * 0.38;
+
+      float n = snoise(np1) * 0.10 + snoise(np2) * 0.03;
+
+      vec3 displaced = position + normal * n;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
+    }
+  `;
+
+  // ══ FRAGMENT SHADER ══
+  // Rich gold palette matching BlueYard energy but in gold tones.
+  // Deep burnt amber core → warm champagne → cream-white rim bloom.
+  const fragmentShader = `
+    uniform float uTime;
+
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+
+    void main() {
+      // Fresnel — edge brightness
+      vec3 N = normalize(vNormal);
+      float fresnel = pow(1.0 - abs(dot(N, vec3(0.0, 0.0, 1.0))), 2.0);
+
+      // Softer champagne-gold palette — warm but not burnt
+      vec3 coreDark    = vec3(0.75, 0.45, 0.15);   // warm amber, not too dark
+      vec3 midGold     = vec3(0.92, 0.72, 0.38);   // champagne gold mid
+      vec3 highlight   = vec3(0.98, 0.90, 0.68);   // soft golden highlight
+      vec3 rimCream    = vec3(1.00, 0.97, 0.88);   // cream-white rim glow
+
+      // Vertical gradient — slightly darker bottom, lighter top
+      float vert = clamp(vPosition.y * 0.38 + 0.58, 0.0, 1.0);
+      vec3 col = mix(coreDark, midGold, vert);
+      col = mix(col, highlight, vert * vert * 0.45);
+
+      // Fresnel edge glow
+      col = mix(col, rimCream, fresnel * 0.85);
+
+      // Subtle shimmer — quieter
+      float shimmer = sin(vPosition.x * 4.0 + uTime * 0.5) *
+                      cos(vPosition.y * 3.5 + uTime * 0.4) * 0.030;
+      col += vec3(shimmer, shimmer * 0.75, shimmer * 0.25);
+
+      // Rim bloom
+      col += rimCream * fresnel * 0.16;
+
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `;
+
+  // ── Orb — large sphere ──
+  const orbGeo = new THREE.SphereGeometry(1.55, 192, 192);
+  const uniforms = {
+    uTime:  { value: 0.0 },
+    uMouse: { value: new THREE.Vector2(0, 0) },
+  };
+  const orbMat = new THREE.ShaderMaterial({
+    vertexShader,
+    fragmentShader,
+    uniforms,
   });
-  const cubeCamera = new THREE.CubeCamera(0.1, 50, cubeRT);
-  scene.add(cubeCamera);
+  const orb = new THREE.Mesh(orbGeo, orbMat);
+  // Orb sits centered — CSS positions canvas so bottom bleeds off screen
+  orb.position.y = 0;
+  scene.add(orb);
 
-  // ── Scene background: rich dark void so reflections pop ──
-  scene.background = null; // stays transparent — page bg shows through
+  // ── Dense glittering particle field on the surface ──
+  // BlueYard has a very dense sparkle field — we match that
+  const PARTICLE_COUNT = 1800;
+  const pGeo    = new THREE.BufferGeometry();
+  const pPos    = new Float32Array(PARTICLE_COUNT * 3);
+  const pRandom = new Float32Array(PARTICLE_COUNT);
+  const pSizes  = new Float32Array(PARTICLE_COUNT);
 
-  // ══ LIGHTING SETUP — chromatic gold iridescent ══
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    // Tight shell — particles hug the surface closely
+    const radius = 1.58 + Math.random() * 0.50;
+    const u      = Math.random();
+    const v      = Math.random();
+    const theta  = u * 2.0 * Math.PI;
+    const phi    = Math.acos(2.0 * v - 1.0);
 
-  // Primary warm gold key light — strong, directional
-  const keyLight = new THREE.DirectionalLight(0xffd080, 8.0);
-  keyLight.position.set(3, 5, 4);
-  scene.add(keyLight);
-
-  // Cool blue-white fill from opposite — creates chromatic shift
-  const fillLight = new THREE.DirectionalLight(0x88ccff, 4.0);
-  fillLight.position.set(-4, -2, 3);
-  scene.add(fillLight);
-
-  // Warm amber rim from behind — edge glow
-  const rimLight = new THREE.DirectionalLight(0xff9933, 5.0);
-  rimLight.position.set(0, -4, -5);
-  scene.add(rimLight);
-
-  // Soft rose/copper undertone from below
-  const underLight = new THREE.DirectionalLight(0xff6644, 2.5);
-  underLight.position.set(-2, -5, 2);
-  scene.add(underLight);
-
-  // Ambient — low, warm, keeps dark side visible
-  scene.add(new THREE.AmbientLight(0xffe8d0, 0.4));
-
-  // Animated specular orbs — these create the "liquid" shimmer
-  const orb1 = new THREE.PointLight(0xfff0aa, 20, 8);
-  orb1.position.set(2.0, 2.5, 2.5);
-  scene.add(orb1);
-
-  const orb2 = new THREE.PointLight(0x88ddff, 12, 8);
-  orb2.position.set(-2.5, -1.5, 2.0);
-  scene.add(orb2);
-
-  const orb3 = new THREE.PointLight(0xff8833, 10, 7);
-  orb3.position.set(1.5, -3.0, -2.0);
-  scene.add(orb3);
-
-  // ── Colorful env backdrop panels (never visible, only reflected) ──
-  // These give the sphere rich color variance in its reflections
-  const envColors = [
-    { color: 0xffd060, pos: [0, 0, -8] },   // gold behind
-    { color: 0x4488ff, pos: [8, 0, 0] },    // blue right
-    { color: 0xff6600, pos: [-8, 0, 0] },   // orange left
-    { color: 0xffffff, pos: [0, 8, 0] },    // white top
-    { color: 0x331100, pos: [0, -8, 0] },   // dark bottom
-  ];
-  envColors.forEach(({ color, pos }) => {
-    const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(20, 20),
-      new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide })
-    );
-    mesh.position.set(...pos);
-    mesh.lookAt(0, 0, 0);
-    scene.add(mesh);
-  });
-
-  // ── Geometry — high-resolution for smooth deformation ──
-  const geo = new THREE.SphereGeometry(1.55, 160, 160);
-  const posAttr = geo.attributes.position;
-  const vCount = posAttr.count;
-  const orig = new Float32Array(posAttr.array);
-
-  // ── Material — true liquid gold chrome ──
-  const mat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(1.0, 0.82, 0.38),      // rich warm gold base
-    metalness: 1.0,                                 // fully metallic — no diffuse bleed
-    roughness: 0.04,                                // near-mirror, slight spread
-    envMap: cubeRT.texture,
-    envMapIntensity: 3.5,
-  });
-
-  const sphere = new THREE.Mesh(geo, mat);
-  scene.add(sphere);
-
-  // ── Smooth organic noise ──
-  function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
-  function lerp(a, b, t) { return a + t * (b - a); }
-  function grad(h, x, y, z) {
-    h &= 15;
-    const u = h < 8 ? x : y, v = h < 4 ? y : (h === 12 || h === 14 ? x : z);
-    return ((h & 1) ? -u : u) + ((h & 2) ? -v : v);
+    pPos[i * 3]     = radius * Math.sin(phi) * Math.cos(theta);
+    pPos[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+    pPos[i * 3 + 2] = radius * Math.cos(phi);
+    pRandom[i]      = Math.random();
+    pSizes[i]       = 0.012 + Math.random() * 0.018;
   }
-  const p = new Uint8Array(512);
-  for (let i = 0; i < 256; i++) p[i] = i;
-  for (let i = 255; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; }
-  for (let i = 0; i < 256; i++) p[i + 256] = p[i];
 
-  function pnoise(x, y, z) {
-    const X = Math.floor(x) & 255, Y = Math.floor(y) & 255, Z = Math.floor(z) & 255;
-    x -= Math.floor(x); y -= Math.floor(y); z -= Math.floor(z);
-    const u = fade(x), v = fade(y), w = fade(z);
-    const A = p[X] + Y, AA = p[A] + Z, AB = p[A + 1] + Z, B = p[X + 1] + Y, BA = p[B] + Z, BB = p[B + 1] + Z;
-    return lerp(
-      lerp(lerp(grad(p[AA], x, y, z), grad(p[BA], x - 1, y, z), u), lerp(grad(p[AB], x, y - 1, z), grad(p[BB], x - 1, y - 1, z), u), v),
-      lerp(lerp(grad(p[AA + 1], x, y, z - 1), grad(p[BA + 1], x - 1, y, z - 1), u), lerp(grad(p[AB + 1], x, y - 1, z - 1), grad(p[BB + 1], x - 1, y - 1, z - 1), u), v),
-      w
-    );
-  }
+  pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
 
-  // Mouse / touch
+  const pMat = new THREE.PointsMaterial({
+    color:       0xfff0c0,   // bright cream-gold sparks
+    size:        0.022,
+    transparent: true,
+    opacity:     0.70,
+    sizeAttenuation: true,
+  });
+
+  const particles = new THREE.Points(pGeo, pMat);
+  scene.add(particles);
+
+  // Mouse tracking
   let mxBlob = 0, myBlob = 0, smX = 0, smY = 0;
   document.addEventListener('mousemove', e => {
-    mxBlob = (e.clientX / window.innerWidth - 0.5) * 2;
+    mxBlob = (e.clientX / window.innerWidth  - 0.5) * 2;
     myBlob = -(e.clientY / window.innerHeight - 0.5) * 2;
   });
   document.addEventListener('touchmove', e => {
-    mxBlob = (e.touches[0].clientX / window.innerWidth - 0.5) * 2;
+    mxBlob = (e.touches[0].clientX / window.innerWidth  - 0.5) * 2;
     myBlob = -(e.touches[0].clientY / window.innerHeight - 0.5) * 2;
   }, { passive: true });
 
   const clock = new THREE.Clock();
-  let frame = 0;
 
   function animate() {
     requestAnimationFrame(animate);
-    frame++;
     const t = clock.getElapsedTime();
 
-    // Smooth mouse follow
-    smX += (mxBlob - smX) * 0.025;
-    smY += (myBlob - smY) * 0.025;
+    smX += (mxBlob - smX) * 0.04;
+    smY += (myBlob - smY) * 0.04;
 
-    // ── Organic deformation ──
-    // Two-layer noise: macro shape + fine surface detail
-    // Kept gentle so it reads as liquid metal, not deflating balloon
-    const freq1 = 0.55, str1 = 0.055, spd1 = 0.18;  // large, slow undulation
-    const freq2 = 1.40, str2 = 0.022, spd2 = 0.40;  // fine surface ripple
+    uniforms.uTime.value = t;
+    uniforms.uMouse.value.set(smX, smY);
 
-    for (let i = 0; i < vCount; i++) {
-      const ox = orig[i * 3], oy = orig[i * 3 + 1], oz = orig[i * 3 + 2];
-      const len = Math.sqrt(ox * ox + oy * oy + oz * oz) || 1;
-      const nx = ox / len, ny = oy / len, nz = oz / len;
+    orb.rotation.y = t * 0.045;
+    particles.rotation.y = -t * 0.022;
+    particles.rotation.x = Math.sin(t * 0.08) * 0.04;
 
-      const n1 = pnoise(
-        nx * freq1 + t * spd1 + smX * 0.12,
-        ny * freq1 + t * spd1 * 0.7,
-        nz * freq1 + t * spd1 * 0.85 + smY * 0.12
-      );
-      const n2 = pnoise(
-        nx * freq2 + t * spd2 * 0.6,
-        ny * freq2 + t * spd2,
-        nz * freq2 + t * spd2 * 0.8
-      );
-
-      const d = 1.0 + n1 * str1 + n2 * str2;
-      posAttr.setXYZ(i, ox * d, oy * d, oz * d);
+    // Drift particles — slow upward float
+    const posAttr = pGeo.getAttribute('position');
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      let y = posAttr.getY(i);
+      y += Math.sin(t * 0.8 + pRandom[i] * 80) * 0.0008 + 0.0003;
+      if (y > 2.6) y = -2.2;
+      posAttr.setY(i, y);
     }
     posAttr.needsUpdate = true;
-    geo.computeVertexNormals();
-
-    // Rotation — slow and dignified, not dizzy
-    sphere.rotation.y = t * 0.08 + smX * 0.18;
-    sphere.rotation.x = Math.sin(t * 0.05) * 0.06 + smY * 0.08;
-
-    // ── Animate light orbs for shimmer ──
-    orb1.position.x = Math.sin(t * 0.50) * 2.5;
-    orb1.position.y = Math.cos(t * 0.38) * 2.0 + 1.0;
-    orb1.position.z = Math.cos(t * 0.22) * 1.5 + 1.5;
-
-    orb2.position.x = Math.cos(t * 0.42) * 2.8;
-    orb2.position.y = Math.sin(t * 0.30) * 1.8 - 0.5;
-    orb2.position.z = Math.sin(t * 0.18) * 1.2 + 1.5;
-
-    orb3.position.x = Math.sin(t * 0.33) * 2.2;
-    orb3.position.y = Math.cos(t * 0.45) * 1.5 - 2.0;
-    orb3.position.z = -Math.cos(t * 0.28) * 2.0 - 1.0;
-
-    // Refresh env map every 3rd frame — balance quality vs perf
-    if (frame % 3 === 0) {
-      sphere.visible = false;
-      cubeCamera.update(renderer, scene);
-      sphere.visible = true;
-    }
 
     renderer.render(scene, camera);
   }
 
   animate();
-})();
-
-
-// ── CURSOR ──
-(function () {
-  const cursor = document.getElementById('cursor');
-  const ring = document.getElementById('cursorRing');
-  if (!cursor || !ring) return;
-  let mx = 0, my = 0, rx = 0, ry = 0;
-  document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
-  (function animCursor() {
-    rx += (mx - rx) * 0.12; ry += (my - ry) * 0.12;
-    cursor.style.transform = `translate(${mx - 4}px,${my - 4}px)`;
-    ring.style.transform = `translate(${rx - 18}px,${ry - 18}px)`;
-    requestAnimationFrame(animCursor);
-  })();
 })();
 
 
@@ -265,21 +261,19 @@ window.addEventListener('scroll', () => {
 // ── HAMBURGER MENU ──
 function toggleMenu() {
   const overlay = document.getElementById('navOverlay');
-  const burger = document.getElementById('navHamburger');
+  const burger  = document.getElementById('navHamburger');
   if (!overlay || !burger) return;
   const isOpen = overlay.classList.toggle('open');
   burger.classList.toggle('open', isOpen);
   document.body.style.overflow = isOpen ? 'hidden' : '';
 }
-
 function closeMenu() {
   const overlay = document.getElementById('navOverlay');
-  const burger = document.getElementById('navHamburger');
+  const burger  = document.getElementById('navHamburger');
   if (overlay) overlay.classList.remove('open');
-  if (burger) burger.classList.remove('open');
+  if (burger)  burger.classList.remove('open');
   document.body.style.overflow = '';
 }
-
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
 
 // ── REVEAL ON SCROLL ──
@@ -307,7 +301,6 @@ const metricsEl = document.getElementById('metrics');
 if (metricsEl) cntObs.observe(metricsEl);
 
 // ── SERVICE ACCORDION ──
-// Works across all service rows regardless of count
 function toggleService(idx) {
   document.querySelectorAll('.service-row').forEach((row, i) => {
     const body = document.getElementById('sb-' + i);
@@ -323,20 +316,19 @@ function toggleService(idx) {
 }
 
 // ── PRICING TOGGLE ──
-const prices = { monthly: ['$1,200', '$2,800', '$5,500'], project: ['$3,400', '$6,800', '$14,000'] };
+const prices  = { monthly: ['$1,200','$2,800','$5,500'], project: ['$3,400','$6,800','$14,000'] };
 const periods = { monthly: 'per month', project: 'flat rate' };
-
 function setPricing(type) {
   document.querySelectorAll('.pricing-toggle button').forEach((b, i) =>
     b.classList.toggle('active', (type === 'monthly' && i === 0) || (type === 'project' && i === 1))
   );
-  [0, 1, 2].forEach(i => {
-    const el = document.getElementById('price-' + i);
+  [0,1,2].forEach(i => {
+    const el  = document.getElementById('price-'  + i);
     const per = document.getElementById('period-' + i);
     if (!el || !per) return;
     el.style.cssText = 'transform:translateY(-10px);opacity:0;';
     setTimeout(() => {
-      el.textContent = prices[type][i];
+      el.textContent  = prices[type][i];
       per.textContent = periods[type];
       el.style.cssText = 'transition:transform 0.4s cubic-bezier(0.16,1,0.3,1),opacity 0.4s;transform:translateY(0);opacity:1;';
     }, 200 + i * 60);
@@ -364,43 +356,37 @@ function loadPhoto(event) {
 function handleChatKey(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 }
-
 async function sendMessage() {
   const input = document.getElementById('chatInput');
-  const text = input.value.trim();
+  const text  = input.value.trim();
   if (!text) return;
   input.value = '';
-
   appendMsg('user', text);
   const typingId = appendTyping();
-
   try {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: text, history: chatHistory }),
     });
-
     removeTyping(typingId);
     if (!res.ok) throw new Error('API error');
-    const data = await res.json();
+    const data  = await res.json();
     const reply = data.reply || "I'm not sure, but Kelly would love to answer that directly!";
     appendMsg('ai', reply);
-    chatHistory.push({ role: 'user', parts: [{ text: text }] });
+    chatHistory.push({ role: 'user',  parts: [{ text: text  }] });
     chatHistory.push({ role: 'model', parts: [{ text: reply }] });
   } catch (err) {
     removeTyping(typingId);
     appendMsg('ai', "I'm having a little trouble right now. Feel free to reach out to Kelly directly!");
   }
 }
-
 function quickAsk(text) {
   const input = document.getElementById('chatInput');
   if (!input) return;
   input.value = text;
   sendMessage();
 }
-
 function appendMsg(role, text) {
   const box = document.getElementById('chatMessages');
   if (!box) return;
@@ -415,11 +401,10 @@ function appendMsg(role, text) {
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
 }
-
 function appendTyping() {
   const box = document.getElementById('chatMessages');
   if (!box) return '';
-  const id = 'typing-' + Date.now();
+  const id  = 'typing-' + Date.now();
   const div = document.createElement('div');
   div.className = 'ai-msg'; div.id = id;
   div.innerHTML = `<div class="ai-msg-avatar">✦</div><div class="ai-msg-bubble"><div class="ai-typing"><span></span><span></span><span></span></div></div>`;
@@ -427,7 +412,6 @@ function appendTyping() {
   box.scrollTop = box.scrollHeight;
   return id;
 }
-
 function removeTyping(id) {
   const el = document.getElementById(id);
   if (el) el.remove();
