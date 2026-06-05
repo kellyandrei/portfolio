@@ -181,24 +181,26 @@
 
   /* ── HERO ── */
   #hero {
-    min-height: 100vh;
+    height: 100vh;
+    min-height: 600px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     position: relative;
     overflow: hidden;
-    padding: 100px 48px 60px;
+    padding: 0 48px;
     background: var(--warm-white);
   }
 
-  /* ── BLOB CANVAS — fluid orb ── */
+  /* ── BLOB CANVAS — large orb, bleeds off bottom like BlueYard ── */
   #blob-canvas {
     position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -62%);
-    width: clamp(360px, 52vw, 640px);
-    height: clamp(360px, 52vw, 640px);
+    bottom: -18vh;
+    left: 50%;
+    transform: translateX(-50%);
+    width: clamp(480px, 72vw, 900px);
+    height: clamp(480px, 72vw, 900px);
     pointer-events: none;
     z-index: 0;
   }
@@ -208,7 +210,7 @@
     position: relative;
     z-index: 2;
     padding: 0 24px;
-    margin-top: clamp(260px, 36vw, 440px);
+    margin-top: clamp(100px, 14vh, 160px);
   }
   .hero-label {
     font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase;
@@ -217,9 +219,9 @@
   }
   .hero-title {
     font-family: var(--font-display);
-    font-size: clamp(2.8rem, 6.5vw, 7rem);
+    font-size: clamp(3.2rem, 7vw, 8rem);
     font-weight: 300;
-    line-height: 1.25;
+    line-height: 1.15;
     letter-spacing: -0.02em;
     margin-bottom: 20px;
   }

@@ -1,10 +1,10 @@
 /*══════════════════════════════════════════════════════════════
-  THREE.JS — FLUID GOLD ORB
-  Technique: BlueYard-style heavily displaced sphere.
-  Vertex shader: simplex noise morphing the geometry every frame.
-  Fragment shader: warm gold palette, fresnel rim glow, no lighting.
-  Particles: gold sparks drifting upward around the orb.
-  Gold palette: deep amber core → champagne mid → cream-white rim glow.
+  THREE.JS — FLUID GOLD ORB  v6
+  - Large orb filling lower hero, bleeding off screen bottom
+  - Rich deep amber → champagne → cream-white fresnel glow
+  - Dense sparkling particle field on the surface
+  - Strong simplex noise displacement for fluid organic shape
+  - Background colour matches orb warmth (no hard edge)
 ══════════════════════════════════════════════════════════════*/
 let chatHistory = [];
 
@@ -18,8 +18,9 @@ let chatHistory = [];
 
   const scene = new THREE.Scene();
 
-  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-  camera.position.z = 5.5;
+  // Camera — pulled back enough to see the full large orb
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+  camera.position.z = 4.8;
 
   function resize() {
     const w = canvas.clientWidth, h = canvas.clientHeight;
@@ -31,52 +32,42 @@ let chatHistory = [];
   window.addEventListener('resize', resize);
 
   // ══ VERTEX SHADER ══
-  // Simplex noise displaces every vertex on every frame.
-  // Strong displacement (0.22) creates the dramatic fluid morphing.
-  // Mouse influence tilts the noise field subtly.
+  // Heavy simplex displacement — what makes it look fluid, not spherical
   const vertexShader = `
     uniform float uTime;
     uniform vec2  uMouse;
 
     varying vec3 vNormal;
     varying vec3 vPosition;
-    varying vec2 vUv;
 
-    // Simplex 3D noise — Ian McEwan / Ashima Arts
     vec4 permute(vec4 x){ return mod(((x*34.0)+1.0)*x, 289.0); }
     vec4 taylorInvSqrt(vec4 r){ return 1.79284291400159 - 0.85373472095314 * r; }
 
     float snoise(vec3 v) {
       const vec2 C = vec2(1.0/6.0, 1.0/3.0);
       const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
-
       vec3 i  = floor(v + dot(v, C.yyy));
       vec3 x0 =   v - i + dot(i, C.xxx);
-
       vec3 g  = step(x0.yzx, x0.xyz);
       vec3 l  = 1.0 - g;
       vec3 i1 = min(g.xyz, l.zxy);
       vec3 i2 = max(g.xyz, l.zxy);
-
       vec3 x1 = x0 - i1 + C.xxx;
       vec3 x2 = x0 - i2 + C.yyy;
       vec3 x3 = x0 - D.yyy;
-
       i = mod(i, 289.0);
       vec4 p = permute(permute(permute(
         i.z + vec4(0.0, i1.z, i2.z, 1.0))
         + i.y + vec4(0.0, i1.y, i2.y, 1.0))
         + i.x + vec4(0.0, i1.x, i2.x, 1.0));
-
       float n_ = 0.142857142857;
       vec3  ns = n_ * D.wyz - D.xzx;
-      vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+      vec4 j  = p - 49.0 * floor(p * ns.z * ns.z);
       vec4 x_ = floor(j * ns.z);
       vec4 y_ = floor(j - 7.0 * x_);
       vec4 x  = x_ * ns.x + ns.yyyy;
       vec4 y  = y_ * ns.x + ns.yyyy;
       vec4 h  = 1.0 - abs(x) - abs(y);
-
       vec4 b0 = vec4(x.xy, y.xy);
       vec4 b1 = vec4(x.zw, y.zw);
       vec4 s0 = floor(b0)*2.0 + 1.0;
@@ -84,83 +75,74 @@ let chatHistory = [];
       vec4 sh = -step(h, vec4(0.0));
       vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
       vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
-
-      vec3 p0 = vec3(a0.xy, h.x);
-      vec3 p1 = vec3(a0.zw, h.y);
-      vec3 p2 = vec3(a1.xy, h.z);
-      vec3 p3 = vec3(a1.zw, h.w);
-
-      vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+      vec3 p0 = vec3(a0.xy,h.x);
+      vec3 p1 = vec3(a0.zw,h.y);
+      vec3 p2 = vec3(a1.xy,h.z);
+      vec3 p3 = vec3(a1.zw,h.w);
+      vec4 norm = taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
       p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
-
-      vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+      vec4 m = max(0.6 - vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)), 0.0);
       m = m * m;
-      return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+      return 42.0 * dot(m*m, vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
     }
 
     void main() {
       vNormal   = normal;
-      vUv       = uv;
       vPosition = position;
 
-      // Multi-octave noise for richer fluid shape
-      vec3 noisePos = position * 1.4 + uTime * 0.38;
-      noisePos.x += uMouse.x * 0.25;
-      noisePos.y += uMouse.y * 0.25;
+      // Two noise octaves — large slow undulation + fine surface churn
+      vec3 np1 = position * 1.3 + uTime * 0.35 + vec3(uMouse * 0.20, 0.0);
+      vec3 np2 = position * 2.6 + uTime * 0.58;
 
-      float n1 = snoise(noisePos);
-      float n2 = snoise(position * 2.8 + uTime * 0.55) * 0.45;
-      float noise = n1 + n2;
+      float n = snoise(np1) * 0.20 + snoise(np2) * 0.08;
 
-      // Strong displacement — this is what makes it look fluid, not spherical
-      vec3 newPosition = position + normal * noise * 0.22;
-
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
+      vec3 displaced = position + normal * n;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
     }
   `;
 
   // ══ FRAGMENT SHADER ══
-  // No lighting calculations — colour is entirely procedural.
-  // Three-stop gold gradient: deep amber → champagne → cream rim glow.
-  // Fresnel makes edges brighten and bloom, exactly like the BlueYard orb.
+  // Rich gold palette matching BlueYard energy but in gold tones.
+  // Deep burnt amber core → warm champagne → cream-white rim bloom.
   const fragmentShader = `
     uniform float uTime;
 
     varying vec3 vNormal;
     varying vec3 vPosition;
-    varying vec2 vUv;
 
     void main() {
-      // Fresnel — how much we're looking at the edge vs the face
-      float fresnel = pow(1.0 - dot(normalize(vNormal), vec3(0.0, 0.0, 1.0)), 2.2);
+      // Fresnel — edge brightness
+      vec3 N = normalize(vNormal);
+      float fresnel = pow(1.0 - abs(dot(N, vec3(0.0, 0.0, 1.0))), 2.0);
 
-      // Gold palette — normalized RGB
-      vec3 deepAmber    = vec3(0.62, 0.35, 0.06);   // dark amber core
-      vec3 champagne    = vec3(0.88, 0.68, 0.30);   // warm champagne mid
-      vec3 creamGlow    = vec3(1.00, 0.94, 0.76);   // bright cream highlight
+      // Rich gold palette
+      vec3 coreAmber   = vec3(0.72, 0.28, 0.08);   // deep burnt amber — the dark centre
+      vec3 midGold     = vec3(0.90, 0.60, 0.20);   // warm mid gold
+      vec3 champagne   = vec3(0.96, 0.82, 0.52);   // bright champagne
+      vec3 rimCream    = vec3(1.00, 0.95, 0.80);   // cream-white rim glow
 
-      // Blend from dark amber at bottom to champagne across the surface
-      // vPosition.y ranges roughly -1 to +1 on the sphere
-      float t = clamp(vPosition.y * 0.5 + 0.62, 0.0, 1.0);
-      vec3 color = mix(deepAmber, champagne, t);
+      // Vertical gradient — dark at bottom, lighter at top
+      float vert = clamp(vPosition.y * 0.42 + 0.55, 0.0, 1.0);
+      vec3 col = mix(coreAmber, midGold, vert);
+      col = mix(col, champagne, vert * vert * 0.5);
 
-      // Fresnel pushes toward bright cream at the edges — the rim bloom
-      color = mix(color, creamGlow, fresnel * 0.82);
+      // Fresnel pushes edges to bright cream
+      col = mix(col, rimCream, fresnel * 0.90);
 
-      // Subtle animated shimmer — a slow noise ripple across the surface
-      float shimmer = sin(vPosition.x * 4.0 + uTime * 0.6) *
-                      sin(vPosition.y * 3.5 + uTime * 0.45) * 0.06;
-      color += vec3(shimmer * 0.8, shimmer * 0.6, shimmer * 0.2);
+      // Animated shimmer across surface
+      float shimmer = sin(vPosition.x * 5.0 + uTime * 0.7) *
+                      cos(vPosition.y * 4.0 + uTime * 0.5) * 0.055;
+      col += vec3(shimmer, shimmer * 0.7, shimmer * 0.2);
 
-      // Add extra glow at the rim
-      color += creamGlow * fresnel * 0.18;
+      // Extra rim glow
+      col += rimCream * fresnel * 0.22;
 
-      gl_FragColor = vec4(color, 0.97);
+      gl_FragColor = vec4(col, 1.0);
     }
   `;
 
-  // ── Orb geometry ──
-  const orbGeo = new THREE.SphereGeometry(1.25, 160, 160);
+  // ── Orb — large sphere ──
+  const orbGeo = new THREE.SphereGeometry(1.7, 192, 192);
   const uniforms = {
     uTime:  { value: 0.0 },
     uMouse: { value: new THREE.Vector2(0, 0) },
@@ -169,39 +151,43 @@ let chatHistory = [];
     vertexShader,
     fragmentShader,
     uniforms,
-    transparent: true,
   });
   const orb = new THREE.Mesh(orbGeo, orbMat);
-  orb.position.y = -0.5; // sits slightly lower in the canvas like BlueYard
+  // Orb sits centered — CSS positions canvas so bottom bleeds off screen
+  orb.position.y = 0;
   scene.add(orb);
 
-  // ── Gold particle field — sparks drifting upward around the orb ──
-  const PARTICLE_COUNT = 520;
+  // ── Dense glittering particle field on the surface ──
+  // BlueYard has a very dense sparkle field — we match that
+  const PARTICLE_COUNT = 1800;
   const pGeo    = new THREE.BufferGeometry();
   const pPos    = new Float32Array(PARTICLE_COUNT * 3);
   const pRandom = new Float32Array(PARTICLE_COUNT);
+  const pSizes  = new Float32Array(PARTICLE_COUNT);
 
   for (let i = 0; i < PARTICLE_COUNT; i++) {
-    // Distribute in a shell volume around the orb
-    const radius = 1.3 + Math.random() * 0.9;
+    // Tight shell — particles hug the surface closely
+    const radius = 1.72 + Math.random() * 0.55;
     const u      = Math.random();
     const v      = Math.random();
     const theta  = u * 2.0 * Math.PI;
     const phi    = Math.acos(2.0 * v - 1.0);
 
     pPos[i * 3]     = radius * Math.sin(phi) * Math.cos(theta);
-    pPos[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta) - 0.5;
+    pPos[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
     pPos[i * 3 + 2] = radius * Math.cos(phi);
     pRandom[i]      = Math.random();
+    pSizes[i]       = 0.012 + Math.random() * 0.018;
   }
 
   pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
 
   const pMat = new THREE.PointsMaterial({
-    color:       0xc9a96e,   // gold
-    size:        0.018,
+    color:       0xfff0c0,   // bright cream-gold sparks
+    size:        0.022,
     transparent: true,
-    opacity:     0.55,
+    opacity:     0.70,
+    sizeAttenuation: true,
   });
 
   const particles = new THREE.Points(pGeo, pMat);
@@ -230,16 +216,16 @@ let chatHistory = [];
     uniforms.uTime.value = t;
     uniforms.uMouse.value.set(smX, smY);
 
-    // Slow rotation — adds extra dimensionality
-    orb.rotation.y = t * 0.055;
-    particles.rotation.y = -t * 0.028;
+    orb.rotation.y = t * 0.045;
+    particles.rotation.y = -t * 0.022;
+    particles.rotation.x = Math.sin(t * 0.08) * 0.04;
 
-    // Drift particles upward and reset when they escape
+    // Drift particles — slow upward float
     const posAttr = pGeo.getAttribute('position');
     for (let i = 0; i < PARTICLE_COUNT; i++) {
       let y = posAttr.getY(i);
-      y += Math.sin(t + pRandom[i] * 100) * 0.001 + 0.0006;
-      if (y > 2.2) y = -1.8;
+      y += Math.sin(t * 0.8 + pRandom[i] * 80) * 0.0008 + 0.0003;
+      if (y > 2.6) y = -2.2;
       posAttr.setY(i, y);
     }
     posAttr.needsUpdate = true;
