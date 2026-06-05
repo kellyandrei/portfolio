@@ -192,13 +192,13 @@
     background: var(--warm-white);
   }
 
-  /* ── BLOB CANVAS — chromatic gold ── */
+  /* ── BLOB CANVAS — fluid orb ── */
   #blob-canvas {
     position: absolute;
     top: 50%; left: 50%;
-    transform: translate(-50%, -60%);
-    width: clamp(340px, 48vw, 580px);
-    height: clamp(340px, 48vw, 580px);
+    transform: translate(-50%, -62%);
+    width: clamp(360px, 52vw, 640px);
+    height: clamp(360px, 52vw, 640px);
     pointer-events: none;
     z-index: 0;
   }
@@ -208,7 +208,7 @@
     position: relative;
     z-index: 2;
     padding: 0 24px;
-    margin-top: clamp(240px, 34vw, 420px);
+    margin-top: clamp(260px, 36vw, 440px);
   }
   .hero-label {
     font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase;

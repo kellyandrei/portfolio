@@ -1,10 +1,10 @@
 /*══════════════════════════════════════════════════════════════
-  THREE.JS — GOLDEN SOUTH SEA PEARL — CUSTOM GLSL SHADER
-  All lustre, highlight, shadow, and subsurface glow is
-  computed directly in GLSL — no env maps, no standard material.
-  Vertex shader: Perlin noise organic deformation.
-  Fragment shader: pearl BRDF — warm gold base, cream highlight
-  lobe, deep amber shadow, subsurface inner glow, fresnel rim.
+  THREE.JS — FLUID GOLD ORB
+  Technique: BlueYard-style heavily displaced sphere.
+  Vertex shader: simplex noise morphing the geometry every frame.
+  Fragment shader: warm gold palette, fresnel rim glow, no lighting.
+  Particles: gold sparks drifting upward around the orb.
+  Gold palette: deep amber core → champagne mid → cream-white rim glow.
 ══════════════════════════════════════════════════════════════*/
 let chatHistory = [];
 
@@ -17,8 +17,9 @@ let chatHistory = [];
   renderer.setClearColor(0x000000, 0);
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
-  camera.position.set(0, 0, 5.0);
+
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  camera.position.z = 5.5;
 
   function resize() {
     const w = canvas.clientWidth, h = canvas.clientHeight;
@@ -29,53 +30,53 @@ let chatHistory = [];
   resize();
   window.addEventListener('resize', resize);
 
-  // ── Geometry ──
-  const geo = new THREE.SphereGeometry(1.6, 192, 192);
-
-  // ── VERTEX SHADER ──
-  // Perlin noise deformation baked directly into the shader.
-  // Keeps the sphere nearly round with gentle organic breathing.
+  // ══ VERTEX SHADER ══
+  // Simplex noise displaces every vertex on every frame.
+  // Strong displacement (0.22) creates the dramatic fluid morphing.
+  // Mouse influence tilts the noise field subtly.
   const vertexShader = `
     uniform float uTime;
     uniform vec2  uMouse;
 
     varying vec3 vNormal;
     varying vec3 vPosition;
-    varying vec3 vWorldNormal;
-    varying vec3 vViewDir;
+    varying vec2 vUv;
 
-    //── Permutation hash ──
-    vec3 mod289(vec3 x) { return x - floor(x * (1.0/289.0)) * 289.0; }
-    vec4 mod289(vec4 x) { return x - floor(x * (1.0/289.0)) * 289.0; }
-    vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
-    vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+    // Simplex 3D noise — Ian McEwan / Ashima Arts
+    vec4 permute(vec4 x){ return mod(((x*34.0)+1.0)*x, 289.0); }
+    vec4 taylorInvSqrt(vec4 r){ return 1.79284291400159 - 0.85373472095314 * r; }
 
-    //── 3D Simplex noise ──
     float snoise(vec3 v) {
       const vec2 C = vec2(1.0/6.0, 1.0/3.0);
       const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+
       vec3 i  = floor(v + dot(v, C.yyy));
-      vec3 x0 = v - i + dot(i, C.xxx);
+      vec3 x0 =   v - i + dot(i, C.xxx);
+
       vec3 g  = step(x0.yzx, x0.xyz);
       vec3 l  = 1.0 - g;
       vec3 i1 = min(g.xyz, l.zxy);
       vec3 i2 = max(g.xyz, l.zxy);
+
       vec3 x1 = x0 - i1 + C.xxx;
       vec3 x2 = x0 - i2 + C.yyy;
       vec3 x3 = x0 - D.yyy;
-      i = mod289(i);
+
+      i = mod(i, 289.0);
       vec4 p = permute(permute(permute(
         i.z + vec4(0.0, i1.z, i2.z, 1.0))
         + i.y + vec4(0.0, i1.y, i2.y, 1.0))
         + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+
       float n_ = 0.142857142857;
       vec3  ns = n_ * D.wyz - D.xzx;
       vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
       vec4 x_ = floor(j * ns.z);
       vec4 y_ = floor(j - 7.0 * x_);
-      vec4 x  = x_ *ns.x + ns.yyyy;
-      vec4 y  = y_ *ns.x + ns.yyyy;
+      vec4 x  = x_ * ns.x + ns.yyyy;
+      vec4 y  = y_ * ns.x + ns.yyyy;
       vec4 h  = 1.0 - abs(x) - abs(y);
+
       vec4 b0 = vec4(x.xy, y.xy);
       vec4 b1 = vec4(x.zw, y.zw);
       vec4 s0 = floor(b0)*2.0 + 1.0;
@@ -83,161 +84,128 @@ let chatHistory = [];
       vec4 sh = -step(h, vec4(0.0));
       vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
       vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+
       vec3 p0 = vec3(a0.xy, h.x);
       vec3 p1 = vec3(a0.zw, h.y);
       vec3 p2 = vec3(a1.xy, h.z);
       vec3 p3 = vec3(a1.zw, h.w);
+
       vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
       p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+
       vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
       m = m * m;
       return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
     }
 
     void main() {
-      vec3 pos = position;
-      vec3 n   = normalize(pos);
+      vNormal   = normal;
+      vUv       = uv;
+      vPosition = position;
 
-      // Two-octave noise — macro breathing + micro surface detail
-      float noise1 = snoise(n * 0.55 + uTime * 0.13 + vec3(uMouse * 0.08, 0.0));
-      float noise2 = snoise(n * 1.40 + uTime * 0.32);
-      float disp   = noise1 * 0.032 + noise2 * 0.014;
+      // Multi-octave noise for richer fluid shape
+      vec3 noisePos = position * 1.4 + uTime * 0.38;
+      noisePos.x += uMouse.x * 0.25;
+      noisePos.y += uMouse.y * 0.25;
 
-      pos += n * disp;
+      float n1 = snoise(noisePos);
+      float n2 = snoise(position * 2.8 + uTime * 0.55) * 0.45;
+      float noise = n1 + n2;
 
-      vPosition    = pos;
-      vNormal      = normalize(normalMatrix * normal);
-      vWorldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
-      vViewDir     = normalize(cameraPosition - (modelMatrix * vec4(pos, 1.0)).xyz);
+      // Strong displacement — this is what makes it look fluid, not spherical
+      vec3 newPosition = position + normal * noise * 0.22;
 
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
     }
   `;
 
-  // ── FRAGMENT SHADER ──
-  // Pearl BRDF built from scratch:
-  //   1. Warm gold base colour
-  //   2. Large soft highlight lobe (cream-white, upper-left)
-  //   3. Small sharp specular spot inside the main lobe
-  //   4. Deep amber shadow on the opposite side
-  //   5. Subsurface inner glow — the "depth" you see in real pearls
-  //   6. Fresnel rim — soft brightening at grazing angles
-  //   7. Soft cast shadow gradient at the bottom
+  // ══ FRAGMENT SHADER ══
+  // No lighting calculations — colour is entirely procedural.
+  // Three-stop gold gradient: deep amber → champagne → cream rim glow.
+  // Fresnel makes edges brighten and bloom, exactly like the BlueYard orb.
   const fragmentShader = `
     uniform float uTime;
-    uniform vec2  uMouse;
 
     varying vec3 vNormal;
     varying vec3 vPosition;
-    varying vec3 vWorldNormal;
-    varying vec3 vViewDir;
-
-    // Palette
-    const vec3 COL_BASE       = vec3(0.82, 0.62, 0.28);   // warm champagne gold
-    const vec3 COL_HIGHLIGHT  = vec3(1.00, 0.97, 0.88);   // cream-white highlight
-    const vec3 COL_SHADOW     = vec3(0.42, 0.24, 0.06);   // deep amber shadow
-    const vec3 COL_SUBSURFACE = vec3(0.95, 0.78, 0.42);   // inner golden glow
-    const vec3 COL_RIM        = vec3(1.00, 0.92, 0.70);   // warm rim
+    varying vec2 vUv;
 
     void main() {
-      vec3 N = normalize(vNormal);
-      vec3 V = normalize(vViewDir);
+      // Fresnel — how much we're looking at the edge vs the face
+      float fresnel = pow(1.0 - dot(normalize(vNormal), vec3(0.0, 0.0, 1.0)), 2.2);
 
-      // ── Light direction — upper-left, slightly forward ──
-      // Animates very slowly to give the lustre shift effect
-      float lt = uTime * 0.18;
-      vec3 L = normalize(vec3(
-        -0.55 + sin(lt) * 0.08 + uMouse.x * 0.12,
-         0.70 + cos(lt * 0.7) * 0.06 + uMouse.y * 0.08,
-         0.80
-      ));
+      // Gold palette — normalized RGB
+      vec3 deepAmber    = vec3(0.62, 0.35, 0.06);   // dark amber core
+      vec3 champagne    = vec3(0.88, 0.68, 0.30);   // warm champagne mid
+      vec3 creamGlow    = vec3(1.00, 0.94, 0.76);   // bright cream highlight
 
-      // ── Diffuse — Lambertian base ──
-      float NdotL = max(dot(N, L), 0.0);
+      // Blend from dark amber at bottom to champagne across the surface
+      // vPosition.y ranges roughly -1 to +1 on the sphere
+      float t = clamp(vPosition.y * 0.5 + 0.62, 0.0, 1.0);
+      vec3 color = mix(deepAmber, champagne, t);
 
-      // ── Main highlight lobe ──
-      // Large, very soft — the big cream patch on the reference image.
-      // Uses a halfway vector with low shininess for broad spread.
-      vec3  H1        = normalize(L + V);
-      float NdotH1    = max(dot(N, H1), 0.0);
-      float highlight = pow(NdotH1, 18.0);   // low exponent = broad soft lobe
+      // Fresnel pushes toward bright cream at the edges — the rim bloom
+      color = mix(color, creamGlow, fresnel * 0.82);
 
-      // ── Sharp specular spot — the small bright point inside the lobe ──
-      float specular  = pow(NdotH1, 120.0);  // high exponent = tight spot
+      // Subtle animated shimmer — a slow noise ripple across the surface
+      float shimmer = sin(vPosition.x * 4.0 + uTime * 0.6) *
+                      sin(vPosition.y * 3.5 + uTime * 0.45) * 0.06;
+      color += vec3(shimmer * 0.8, shimmer * 0.6, shimmer * 0.2);
 
-      // ── Shadow — ambient occlusion feel on the opposite side ──
-      // Faces away from light get pushed toward deep amber
-      float shadow = 1.0 - smoothstep(0.0, 1.0, NdotL + 0.35);
+      // Add extra glow at the rim
+      color += creamGlow * fresnel * 0.18;
 
-      // ── Subsurface scattering approximation ──
-      // Light wraps around the sphere and glows from within.
-      // Simulated as a broad back-scatter term.
-      float sss = pow(max(dot(-N, L) + 0.4, 0.0), 2.5) * 0.35;
-
-      // ── Fresnel rim ──
-      // Pearls brighten slightly at grazing angles.
-      float fresnel = pow(1.0 - max(dot(N, V), 0.0), 3.5) * 0.55;
-
-      // ── Compose ──
-      // Start with base colour modulated by diffuse
-      vec3 col = mix(COL_BASE * 0.55, COL_BASE, NdotL * 0.8 + 0.2);
-
-      // Blend shadow into the dark side
-      col = mix(col, COL_SHADOW, shadow * 0.62);
-
-      // Add subsurface warmth
-      col += COL_SUBSURFACE * sss;
-
-      // Add the main broad highlight lobe
-      col = mix(col, COL_HIGHLIGHT, highlight * 0.88);
-
-      // Add the tight specular spot on top
-      col += COL_HIGHLIGHT * specular * 1.1;
-
-      // Add fresnel rim brightening
-      col += COL_RIM * fresnel * 0.45;
-
-      // ── Cast shadow vignette at the bottom ──
-      // The reference image has a soft shadow pooling beneath the pearl.
-      // We fake this as a darkening of the very bottom of the sphere.
-      float bottomFade = smoothstep(-0.3, -1.6, vPosition.y);
-      col = mix(col, col * 0.72, bottomFade * 0.5);
-
-      // ── Tone mapping — keep it warm, not blown out ──
-      col = col / (col + vec3(0.85));   // Reinhard-ish
-      col = pow(col, vec3(0.88));       // slight gamma lift for warmth
-
-      gl_FragColor = vec4(col, 1.0);
+      gl_FragColor = vec4(color, 0.97);
     }
   `;
 
-  // ── Uniforms ──
+  // ── Orb geometry ──
+  const orbGeo = new THREE.SphereGeometry(1.25, 160, 160);
   const uniforms = {
     uTime:  { value: 0.0 },
     uMouse: { value: new THREE.Vector2(0, 0) },
   };
-
-  const mat = new THREE.ShaderMaterial({
+  const orbMat = new THREE.ShaderMaterial({
     vertexShader,
     fragmentShader,
     uniforms,
-  });
-
-  const sphere = new THREE.Mesh(geo, mat);
-  scene.add(sphere);
-
-  // ── Soft drop shadow — ellipse beneath the pearl ──
-  const shadowGeo = new THREE.PlaneGeometry(1, 1);
-  const shadowMat = new THREE.MeshBasicMaterial({
-    color: 0x000000,
     transparent: true,
-    opacity: 0.09,
   });
-  const shadowPlane = new THREE.Mesh(shadowGeo, shadowMat);
-  shadowPlane.rotation.x = -Math.PI / 2;
-  shadowPlane.position.set(0, -1.72, 0);
-  shadowPlane.scale.set(2.6, 0.55, 1);
-  scene.add(shadowPlane);
+  const orb = new THREE.Mesh(orbGeo, orbMat);
+  orb.position.y = -0.5; // sits slightly lower in the canvas like BlueYard
+  scene.add(orb);
+
+  // ── Gold particle field — sparks drifting upward around the orb ──
+  const PARTICLE_COUNT = 520;
+  const pGeo    = new THREE.BufferGeometry();
+  const pPos    = new Float32Array(PARTICLE_COUNT * 3);
+  const pRandom = new Float32Array(PARTICLE_COUNT);
+
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    // Distribute in a shell volume around the orb
+    const radius = 1.3 + Math.random() * 0.9;
+    const u      = Math.random();
+    const v      = Math.random();
+    const theta  = u * 2.0 * Math.PI;
+    const phi    = Math.acos(2.0 * v - 1.0);
+
+    pPos[i * 3]     = radius * Math.sin(phi) * Math.cos(theta);
+    pPos[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta) - 0.5;
+    pPos[i * 3 + 2] = radius * Math.cos(phi);
+    pRandom[i]      = Math.random();
+  }
+
+  pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+
+  const pMat = new THREE.PointsMaterial({
+    color:       0xc9a96e,   // gold
+    size:        0.018,
+    transparent: true,
+    opacity:     0.55,
+  });
+
+  const particles = new THREE.Points(pGeo, pMat);
+  scene.add(particles);
 
   // Mouse tracking
   let mxBlob = 0, myBlob = 0, smX = 0, smY = 0;
@@ -256,18 +224,25 @@ let chatHistory = [];
     requestAnimationFrame(animate);
     const t = clock.getElapsedTime();
 
-    smX += (mxBlob - smX) * 0.025;
-    smY += (myBlob - smY) * 0.025;
+    smX += (mxBlob - smX) * 0.04;
+    smY += (myBlob - smY) * 0.04;
 
-    uniforms.uTime.value  = t;
+    uniforms.uTime.value = t;
     uniforms.uMouse.value.set(smX, smY);
 
-    // Very slow dignified rotation
-    sphere.rotation.y = t * 0.055 + smX * 0.10;
-    sphere.rotation.x = Math.sin(t * 0.038) * 0.04 + smY * 0.06;
+    // Slow rotation — adds extra dimensionality
+    orb.rotation.y = t * 0.055;
+    particles.rotation.y = -t * 0.028;
 
-    // Shadow follows mouse subtly
-    shadowPlane.position.x = smX * 0.06;
+    // Drift particles upward and reset when they escape
+    const posAttr = pGeo.getAttribute('position');
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      let y = posAttr.getY(i);
+      y += Math.sin(t + pRandom[i] * 100) * 0.001 + 0.0006;
+      if (y > 2.2) y = -1.8;
+      posAttr.setY(i, y);
+    }
+    posAttr.needsUpdate = true;
 
     renderer.render(scene, camera);
   }
